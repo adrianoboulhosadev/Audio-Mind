@@ -1,0 +1,107 @@
+name: audio-mind
+
+services:
+  db:
+    build:
+      context: ./apps/database
+    container_name: audio-mind-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # Bound to localhost only: reachable from the host itself (e.g. `psql`),
+      # never from outside. Backend/worker reach this over the internal compose
+      # network via the `db` hostname, not this port.
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7
+    container_name: audio-mind-redis
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: audio-mind-backend
+    restart: unless-stopped
+    env_file:
+      - ./apps/backend/.env
+    environment:
+      # Overrides the host-dev values from the env file above: inside the compose
+      # network, Postgres/Redis are reached by service name.
+      # ATENÇÃO às portas: aqui é comunicação ENTRE CONTAINERS, então valem as
+      # portas INTERNAS (5432 e 6379) — as do lado esquerdo de `ports:` são só o
+      # mapeamento pro host. Trocar 6379 por 6380 aqui derruba a fila e o push
+      # do sininho.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+      UPLOADS_DIR: /repo/apps/backend/uploads
+    ports:
+      - '127.0.0.1:5001:5000'
+    volumes:
+      # The audio people upload and the PDFs the pipeline generates live on disk,
+      # not in the database — WITHOUT this volume, recreating the container
+      # erases everyone's recordings.
+      - uploads_data:/repo/apps/backend/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: audio-mind-worker
+    restart: unless-stopped
+    env_file:
+      - ./apps/worker/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+      UPLOADS_DIR: /repo/apps/backend/uploads
+    volumes:
+      # THE SAME volume as the backend, and it is not optional: the worker reads
+      # the audio from here and writes the summary PDF back into it. Two separate
+      # volumes would mean a worker that cannot find any file it is asked about.
+      - uploads_data:/repo/apps/backend/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+    container_name: audio-mind-web
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3003:3000'
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
+  uploads_data:

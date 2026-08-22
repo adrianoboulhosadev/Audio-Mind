@@ -1,0 +1,9 @@
+{
+  "name": "container-db",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "docker compose --file=../../docker-compose.yml up -d --wait db redis",
+    "stop": "docker compose --file=../../docker-compose.yml stop db redis"
+  }
+}
