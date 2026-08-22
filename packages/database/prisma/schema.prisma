@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- auth ----------------------------------------------------------------------
+
+// Identity/credential. The rich domain `User` maps email/password to value
+// objects; `name` is display-only and never authenticates (login is by e-mail).
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String
+  name        String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  @@map("users")
+}
+
+// Stateful refresh session: one row per login/device. Stores only the HASH of
+// the refresh token; rotation + reuse detection sustain logout. userId is a
+// LOGICAL FK to User (no relation, to avoid coupling contexts).
+model AuthSession {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  verifierHash String   @map("verifier_hash")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+// --- recording -----------------------------------------------------------------
+
+// The audio itself: what the user recorded in the browser or uploaded, plus the
+// pipeline status (pending -> transcribing -> summarizing -> ready | failed).
+// The FILE lives on disk (see the Uploads section of CLAUDE.md); only its path
+// is stored here. `ownerId` is a LOGICAL FK to User.
+model Recording {
+  id              String   @id @default(uuid())
+  ownerId         String   @map("owner_id")
+  title           String
+  source          String
+  audioUrl        String   @map("audio_url")
+  mimeType        String   @map("mime_type")
+  sizeBytes       Int      @map("size_bytes")
+  durationSeconds Int      @map("duration_seconds")
+  status          String   @default("pending")
+  failureReason   String?  @map("failure_reason")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([ownerId, createdAt])
+  @@map("recordings")
+}
+
+// --- transcription -------------------------------------------------------------
+
+// What the speech-to-text model heard. One per recording (`recordingId` is
+// unique), which is what makes re-processing idempotent: the pipeline upserts
+// instead of piling up transcripts. LOGICAL FK — transcription and recording
+// are different contexts.
+model Transcription {
+  id          String   @id @default(uuid())
+  recordingId String   @unique @map("recording_id")
+  text        String
+  language    String?
+  model       String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("transcriptions")
+}
+
+// --- summary -------------------------------------------------------------------
+
+// What the LLM wrote about the transcript, plus the rendered PDF. `topics` and
+// `actionItems` are scalar lists: they are the summary's own bullets, always
+// read and written with it, and never queried on their own. `pdfUrl` is null
+// until the PDF is rendered (a second step of the same pipeline).
+model Summary {
+  id          String   @id @default(uuid())
+  recordingId String   @unique @map("recording_id")
+  headline    String
+  overview    String
+  topics      String[]
+  actionItems String[] @map("action_items")
+  model       String
+  pdfUrl      String?  @map("pdf_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("summaries")
+}
+
+// --- notification --------------------------------------------------------------
+
+// One line in a user's inbox. The unique triple is what makes delivery
+// IDEMPOTENT: a retried pipeline job re-sending the same event is a no-op
+// instead of a duplicated line (see NotificationRepository.createMany).
+// `user_id` is a LOGICAL FK.
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  type        String
+  title       String
+  body        String
+  link        String?
+  referenceId String?   @map("reference_id")
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([userId, type, referenceId])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
