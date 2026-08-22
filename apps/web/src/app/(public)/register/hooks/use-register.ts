@@ -1,0 +1,36 @@
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import type { RegisterUserInput } from '@auth/adapters'
+import { useAuth } from '@/contexts/auth-context'
+import { errorMessage } from '@/lib/api'
+
+interface RegisterForm extends RegisterUserInput {
+  confirmPassword: string
+}
+
+export function useRegister() {
+  const { register: createAccount } = useAuth()
+  const router = useRouter()
+  const [failure, setFailure] = useState<string | null>(null)
+  const form = useForm<RegisterForm>({
+    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
+  })
+
+  const submit = form.handleSubmit(async ({ confirmPassword: _ignored, ...input }) => {
+    setFailure(null)
+    try {
+      await createAccount(input)
+      // Signing up does not log anyone in — one single path leads to a session.
+      toast.success('Conta criada! Agora é só entrar.')
+      router.replace('/login')
+    } catch (error) {
+      setFailure(errorMessage(error))
+    }
+  })
+
+  return { form, submit, failure, submitting: form.formState.isSubmitting }
+}

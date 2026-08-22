@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * The single source of truth for color. Tailwind maps every token in
+ * tailwind.config.ts, so components say `bg-panel` / `text-muted` and never a
+ * raw palette color.
+ */
+:root {
+  --bg: #0a0e15;
+  --panel: #111825;
+  --panel2: #18202f;
+  --ink: #e9eef7;
+  --ink2: #c3cddc;
+  --muted: #8291a8;
+  --line: #1f2937;
+  --line2: #2b3648;
+  --accent: #5b8cff;
+  --accent-soft: rgba(91, 140, 255, 0.14);
+  --accent-ink: #061024;
+  --good: #3ecf8e;
+  --warn: #f5a524;
+  --bad: #ff6b6b;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  /* A very soft glow behind the top of the page, so the dark UI is not flat. */
+  background-image: radial-gradient(60rem 30rem at 50% -10rem, rgba(91, 140, 255, 0.1), transparent);
+  background-repeat: no-repeat;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Scrollbars styled to the palette — a dark app with default light scrollbars
+   looks broken on Windows. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line2) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line2);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
