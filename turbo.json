@@ -1,0 +1,26 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "envMode": "loose",
+  // NOTE: concurrency is NOT raised globally. The persistent "dev" watchers need
+  // more than turbo's default of 10, but that same ceiling would also let
+  // `check-types`/`test`/`build` fan out dozens of tsc/jest processes at once,
+  // which exhausts memory and aborts them (SIGABRT). So the bump lives only on
+  // the dev script (`turbo run dev --concurrency=30`, see the root package.json).
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {},
+    "check-types": {
+      "dependsOn": ["^build"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

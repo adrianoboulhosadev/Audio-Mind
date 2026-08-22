@@ -1,0 +1,22 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+generated
+**/generated
+.git
+.gitignore
+
+# Secrets never enter an image. A pattern WITHOUT `**/` only matches the ROOT,
+# so `.env` alone would still let apps/backend/.env and apps/web/.env in.
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Uploaded audio/PDFs are runtime state (a named volume), never image content.
+apps/backend/uploads

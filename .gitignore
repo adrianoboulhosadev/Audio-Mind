@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.next/
+.turbo/
+generated/
+*.local
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+
+# uploaded files (local static storage: audios + generated PDFs)
+apps/backend/uploads/

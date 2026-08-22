@@ -1,0 +1,31 @@
+{
+  "name": "audio-mind",
+  "private": true,
+  "packageManager": "npm@11.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/shared",
+    "packages/database",
+    "packages/*/core",
+    "packages/*/adapters"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "npm run db:up && npm run db:deploy && turbo run dev --concurrency=30",
+    "db:up": "npm run -w container-db start",
+    "db:deploy": "npm run -w database prisma:deploy",
+    "db:migrate": "npm run -w database prisma:migrate",
+    "db:stop": "npm run -w container-db stop",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.0",
+    "turbo": "^2.4.2",
+    "typescript": "5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
