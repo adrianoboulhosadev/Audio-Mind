@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "isolatedModules": true,
+    "paths": {
+      "@auth/core": ["../core/src"],
+      "shared": ["../../shared/src"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,8 @@
+export { default as RegisterUserController } from './register-user-controller'
+export { default as LoginUserController } from './login-user-controller'
+export { default as RefreshTokenController } from './refresh-token-controller'
+export { default as LogoutUserController } from './logout-user-controller'
+export { default as ChangePasswordController } from './change-password-controller'
+export { default as DeactivateUserController } from './deactivate-user-controller'
+export { default as FindUserByIdController } from './find-user-by-id-controller'
+export { default as UpdateProfileController } from './update-profile-controller'
