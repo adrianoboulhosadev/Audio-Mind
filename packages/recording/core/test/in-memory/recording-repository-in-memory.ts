@@ -1,0 +1,90 @@
+import {
+  Recording,
+  RecordingDTO,
+  RecordingQueryRepository,
+  RecordingRepository,
+  RecordingSource,
+  RecordingStatus,
+} from '../../src'
+
+/**
+ * Simulates the database TABLE. Writes SERIALIZE the entity (reading its value
+ * objects); reads RECONSTITUTE it through the constructor — the same round-trip
+ * the real Prisma repository does. The query side projects the plain DTO.
+ */
+interface RecordingRow {
+  id: string
+  ownerId: string
+  title: string
+  source: RecordingSource
+  audioUrl: string
+  mimeType: string
+  sizeBytes: number
+  durationSeconds: number
+  status: RecordingStatus
+  failureReason: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export default class RecordingRepositoryInMemory
+  implements RecordingRepository, RecordingQueryRepository
+{
+  private rows: RecordingRow[] = []
+
+  private serialize(recording: Recording): RecordingRow {
+    return {
+      id: recording.id.value,
+      ownerId: recording.ownerId,
+      title: recording.title.value,
+      source: recording.source,
+      audioUrl: recording.audio.url,
+      mimeType: recording.audio.mimeType,
+      sizeBytes: recording.audio.sizeBytes,
+      durationSeconds: recording.audio.durationSeconds,
+      status: recording.status,
+      failureReason: recording.failureReason,
+      createdAt: recording.createdAt,
+      updatedAt: recording.updatedAt,
+    }
+  }
+
+  private reconstitute(row: RecordingRow): Recording {
+    return new Recording({ ...row })
+  }
+
+  async create(recording: Recording): Promise<void> {
+    this.rows.push(this.serialize(recording))
+  }
+
+  async findById(id: string): Promise<Recording | null> {
+    const row = this.rows.find((current) => current.id === id)
+    return row ? this.reconstitute(row) : null
+  }
+
+  async update(recording: Recording): Promise<void> {
+    const index = this.rows.findIndex((current) => current.id === recording.id.value)
+    if (index >= 0) this.rows[index] = this.serialize(recording)
+  }
+
+  async delete(id: string): Promise<void> {
+    this.rows = this.rows.filter((current) => current.id !== id)
+  }
+
+  async listByOwnerQuery(ownerId: string, limit: number): Promise<RecordingDTO[]> {
+    return this.rows
+      .filter((row) => row.ownerId === ownerId)
+      .sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())
+      .slice(0, limit)
+      .map((row) => ({ ...row }))
+  }
+
+  async findByIdQuery(id: string): Promise<RecordingDTO | null> {
+    const row = this.rows.find((current) => current.id === id)
+    return row ? { ...row } : null
+  }
+
+  get size(): number {
+    return this.rows.length
+  }
+}
