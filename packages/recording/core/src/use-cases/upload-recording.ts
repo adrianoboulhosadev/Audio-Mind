@@ -1,5 +1,5 @@
 import { UseCase, EventPublisher } from 'shared'
-import { Recording, RecordingSource, RecordingUploaded } from '../model'
+import { AudioAllowance, Recording, RecordingSource, RecordingUploaded } from '../model'
 import { RecordingProcessingQueue, RecordingRepository } from '../providers'
 
 interface Input {
@@ -15,6 +15,10 @@ interface Input {
   /** Measured in the browser before uploading; the AudioFile VO is what decides
    * whether it is acceptable. */
   durationSeconds: number
+  /** Resolved from the CALLER's role at the HTTP boundary, next to ownerId and
+   * for the same reason: it decides the ceilings, so it can never come from the
+   * body a client controls. Omitted = the tight allowance. */
+  allowance?: AudioAllowance
 }
 
 /**
@@ -41,6 +45,7 @@ export default class UploadRecording implements UseCase<Input, void> {
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
       durationSeconds: input.durationSeconds,
+      admissionAllowance: input.allowance ?? 'standard',
     })
 
     await this.repository.create(recording)

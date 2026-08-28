@@ -1,4 +1,5 @@
 import {
+  AudioAllowance,
   RecordingDTO,
   RecordingProcessingQueue,
   RecordingQueryRepository,
@@ -31,9 +32,14 @@ export default class RecordingFacade {
     private readonly eventPublisher?: EventPublisher,
   ) {}
 
-  async uploadRecording(ownerId: string, input: UploadRecordingInput): Promise<void> {
+  async uploadRecording(
+    ownerId: string,
+    allowance: AudioAllowance,
+    input: UploadRecordingInput,
+  ): Promise<void> {
     await new UploadRecordingController(this.repository!, this.queue, this.eventPublisher).execute(
       ownerId,
+      allowance,
       input,
     )
   }

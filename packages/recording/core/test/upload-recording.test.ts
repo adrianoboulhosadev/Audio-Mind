@@ -57,3 +57,40 @@ test('works without the queue port (the port is optional, like everywhere else)'
   await new UploadRecording(repository).execute(INPUT)
   expect(repository.size).toBe(1)
 })
+
+// --- allowance -----------------------------------------------------------------
+
+const OVER_STANDARD = {
+  ...INPUT,
+  sizeBytes: 200 * 1024 * 1024,
+  durationSeconds: 3 * 60 * 60,
+}
+
+test('an omitted allowance is the TIGHT one — forgetting it can only narrow', async () => {
+  const { useCase } = setup()
+  await expect(useCase.execute(OVER_STANDARD)).rejects.toMatchObject({
+    code: Errors.AUDIO_TOO_LARGE,
+  })
+})
+
+test('the standard allowance refuses what the extended one accepts', async () => {
+  const standard = setup()
+  await expect(standard.useCase.execute({ ...OVER_STANDARD, allowance: 'standard' })).rejects.toMatchObject(
+    { code: Errors.AUDIO_TOO_LARGE },
+  )
+
+  const extended = setup()
+  await extended.useCase.execute({ ...OVER_STANDARD, allowance: 'extended' })
+  expect(extended.repository.size).toBe(1)
+  expect(extended.queue.enqueued).toHaveLength(1)
+})
+
+test('the size error reports the CALLER ceiling, not a global constant', async () => {
+  const { useCase } = setup()
+  await expect(
+    useCase.execute({ ...INPUT, sizeBytes: 2 * 1024 * 1024 * 1024, allowance: 'extended' }),
+  ).rejects.toMatchObject({
+    code: Errors.AUDIO_TOO_LARGE,
+    extras: expect.objectContaining({ max: 1024 * 1024 * 1024 }),
+  })
+})

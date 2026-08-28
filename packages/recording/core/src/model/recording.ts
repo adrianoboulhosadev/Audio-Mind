@@ -1,5 +1,5 @@
 import { AggregateRoot, ConflictError, EntityProps, Errors, ValidationError } from 'shared'
-import { AudioFile } from './audio-file'
+import { AudioAllowance, AudioFile } from './audio-file'
 import { RecordingTitle } from './recording-title'
 import { RecordingFailed, RecordingReady } from './events'
 
@@ -31,6 +31,13 @@ export interface RecordingProps extends EntityProps {
   durationSeconds?: number
   status?: RecordingStatus
   failureReason?: string | null
+  /**
+   * How much audio the caller was allowed to hand over. Set ONLY on the way in
+   * (the upload use case reads it from who is asking); a repository
+   * reconstituting a row leaves it out, so a recording that was already
+   * admitted keeps loading even if the ceilings move later.
+   */
+  admissionAllowance?: AudioAllowance
   createdAt?: Date
   updatedAt?: Date
 }
@@ -69,6 +76,9 @@ export class Recording extends AggregateRoot<Recording, RecordingProps> {
       mimeType: props.mimeType,
       sizeBytes: props.sizeBytes,
       durationSeconds: props.durationSeconds,
+      admissionLimits: props.admissionAllowance
+        ? AudioFile.limitsFor(props.admissionAllowance)
+        : undefined,
     })
     this.status = props.status ?? 'pending'
     this.failureReason = props.failureReason ?? null
