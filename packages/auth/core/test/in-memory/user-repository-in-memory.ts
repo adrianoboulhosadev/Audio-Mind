@@ -1,4 +1,4 @@
-import { UserRepository, UserQueryRepository, User, UserDTO } from '../../src'
+import { UserRepository, UserQueryRepository, User, UserDTO, toUserRole } from '../../src'
 
 /**
  * Simulates the database TABLE: a plain row with the infra columns (createdAt,
@@ -12,6 +12,9 @@ interface UserRow {
   password: string
   name: string | null
   active: boolean
+  // A plain string, like the real column: promoting someone is a hand-run
+  // UPDATE, so the fake must be able to hold a value the domain will refuse.
+  role: string
   createdAt: Date
   lastLoginAt: Date | null
 }
@@ -26,6 +29,7 @@ export default class UserRepositoryInMemory implements UserRepository, UserQuery
       password: row.password,
       name: row.name,
       active: row.active,
+      role: row.role,
     })
   }
 
@@ -36,6 +40,9 @@ export default class UserRepositoryInMemory implements UserRepository, UserQuery
       password: user.password!.value,
       name: user.name,
       active: user.active,
+      // Registration is open and everyone starts ordinary — the real column's
+      // default says the same thing.
+      role: 'user',
       createdAt: new Date(),
       lastLoginAt: null,
     })
@@ -80,6 +87,7 @@ export default class UserRepositoryInMemory implements UserRepository, UserQuery
       email: row.email,
       name: row.name,
       active: row.active,
+      role: toUserRole(row.role),
       createdAt: row.createdAt,
       lastLoginAt: row.lastLoginAt,
     }

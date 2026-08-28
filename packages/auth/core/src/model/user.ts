@@ -2,6 +2,7 @@ import { AggregateRoot, EntityProps } from 'shared'
 import { DisplayName } from './display-name'
 import { Email } from './email'
 import { PasswordHash } from './password-hash'
+import { UserRole, toUserRole } from './user-role'
 
 export interface UserProps extends EntityProps {
   email?: string
@@ -10,6 +11,9 @@ export interface UserProps extends EntityProps {
   password?: string
   name?: string | null
   active?: boolean
+  /** Read through `toUserRole`, so an unknown value in the column degrades to
+   * the ordinary user instead of failing the whole reconstitution. */
+  role?: string | null
 }
 
 /**
@@ -24,6 +28,7 @@ export interface UserProps extends EntityProps {
 export class User extends AggregateRoot<User, UserProps> {
   readonly email: Email
   readonly password?: PasswordHash
+  readonly role: UserRole
   name: string | null
   active: boolean
 
@@ -33,6 +38,13 @@ export class User extends AggregateRoot<User, UserProps> {
     if (props.password) this.password = new PasswordHash(props.password)
     this.name = new DisplayName(props.name ?? undefined).value || null
     this.active = props.active ?? true
+    this.role = toUserRole(props.role)
+  }
+
+  /** The only thing the role decides today: how big an audio this identity may
+   * upload. See AudioFile.allowanceFor. */
+  get isAdmin(): boolean {
+    return this.role === 'admin'
   }
 
   /** Display-only edit — never touches email/password. */

@@ -71,3 +71,21 @@ describe('User', () => {
     expect(user.active).toBe(false)
   })
 })
+
+// --- role ----------------------------------------------------------------------
+
+test('a user is ordinary unless the column says exactly "admin"', () => {
+  expect(new User({ email: 'a@b.com', role: 'admin' }).isAdmin).toBe(true)
+
+  // Everything else — a typo in a hand-run UPDATE, an old value, nothing at all —
+  // must read as an ordinary user. A role is only ever granted on purpose.
+  for (const role of [undefined, null, '', 'user', 'Admin', 'ADMIN', 'administrator', 'root']) {
+    expect(new User({ email: 'a@b.com', role }).isAdmin).toBe(false)
+  }
+})
+
+test('an unknown role does not fail the reconstitution', () => {
+  const user = new User({ email: 'a@b.com', role: 'sysadmin' })
+  expect(user.role).toBe('user')
+  expect(user.email.value).toBe('a@b.com')
+})
