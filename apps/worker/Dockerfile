@@ -7,6 +7,11 @@ RUN npx turbo run build --filter=worker...
 
 FROM node:20-alpine AS runner
 ENV NODE_ENV=production
+# ffmpeg is not optional here: the worker re-encodes every audio to 16 kHz mono
+# before sending it to the transcription API, which is what makes a long
+# recording fit under the endpoint's 25 MB limit. Without it the worker still
+# runs (it falls back to the original file), but anything long starts failing.
+RUN apk add --no-cache ffmpeg
 WORKDIR /repo
 COPY --from=builder /repo .
 # The worker READS the uploaded audio and WRITES the generated PDFs into the

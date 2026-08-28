@@ -20,6 +20,11 @@ const REASONS: Record<string, string> = {
   [Errors.TOO_MANY_SUMMARY_ITEMS]: 'O modelo devolveu um resumo fora do formato esperado.',
   [Errors.SUMMARY_TEXT_TOO_LONG]: 'O modelo devolveu um resumo fora do formato esperado.',
   [Errors.UNSUPPORTED_AUDIO_FORMAT]: 'Esse formato de áudio não é aceito na transcrição.',
+  // Reached only AFTER the re-encode to 16 kHz mono, so "compacte e tente de
+  // novo" would be advice we already followed. What is worth saying is that the
+  // audio itself did not go anywhere.
+  [Errors.AUDIO_TOO_LARGE]:
+    'Esse áudio é grande demais para o serviço de transcrição, mesmo depois de compactado. Ele continua salvo aqui e você pode ouvi-lo e baixá-lo normalmente.',
   [Errors.RECORDING_NOT_FOUND]: 'A gravação não foi encontrada.',
 }
 
