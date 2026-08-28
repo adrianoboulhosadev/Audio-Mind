@@ -18,6 +18,11 @@ model User {
   password    String
   name        String?
   active      Boolean   @default(true)
+  // 'user' | 'admin'. Not an enum on purpose: the ONLY way to promote someone
+  // is an UPDATE run by hand against this column, and a plain string keeps that
+  // possible without a migration. The domain reads it fail-closed — anything
+  // that is not exactly 'admin' is an ordinary user.
+  role        String    @default("user")
   createdAt   DateTime  @default(now()) @map("created_at")
   lastLoginAt DateTime? @map("last_login_at")
 
