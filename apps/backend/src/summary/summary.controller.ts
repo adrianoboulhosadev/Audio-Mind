@@ -63,7 +63,32 @@ export class SummaryController {
     const filename = `${recording.title.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'resumo'}.pdf`
     response.setHeader('Content-Type', 'application/pdf')
     response.setHeader('Content-Length', size)
-    response.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    // TWO forms on purpose. `filename=` only carries ASCII, so a title like
+    // "Reunião de kickoff" arrives mangled; `filename*=` (RFC 5987) carries the
+    // real UTF-8 name. Every current browser prefers the starred one and older
+    // clients fall back to the plain one, which is why both are sent.
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${toAsciiFilename(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    )
     createReadStream(path).pipe(response)
   }
+}
+
+/**
+ * The ASCII fallback of the same name: accents lose their diacritics rather than
+ * turning into replacement characters, so a client that ignores `filename*=`
+ * still saves something readable ("Reuniao de kickoff.pdf").
+ */
+function toAsciiFilename(filename: string): string {
+  return (
+    filename
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      // Anything still outside ASCII (and the quote that would end the header
+      // value early) becomes a space; collapsing keeps the result tidy.
+      .replace(/["\\]|[^\x20-\x7e]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'resumo.pdf'
+  )
 }

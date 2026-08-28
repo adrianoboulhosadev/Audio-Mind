@@ -17,6 +17,7 @@ import { RecordingDTO, RecordingFacade, RenameRecordingInput, UploadRecordingInp
 import { SummaryFacade } from '@summary/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { UserDTO } from '@auth/adapters'
+import { allowanceFor } from '../auth/upload-allowance'
 import { authenticatedUser } from '../shared/authenticated-user.decorator'
 import { requireFields } from '../shared/require-fields'
 import { DomainEventListener } from '../notification/domain-event-listener'
@@ -58,7 +59,9 @@ export class RecordingController {
     // is checked against the uploads root before anything stores it.
     resolveUploadPath(input.audioUrl)
 
-    await this.facade().uploadRecording(user.id, {
+    // The allowance is read from the authenticated caller, never from the body:
+    // a client that could name its own ceiling would name the biggest one.
+    await this.facade().uploadRecording(user.id, allowanceFor(user), {
       ...input,
       source: input.source === 'record' ? 'record' : 'upload',
       mimeType: normalizeMimeType(input.mimeType),
