@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ICONS } from '@/components/sidebar/data/icons'
+import { Bell } from 'lucide-react'
 import { formatRelative } from '@/lib/format'
 import { useNotificationBell } from './hooks/use-notification-bell'
 
@@ -20,7 +20,7 @@ export function NotificationBell() {
         aria-label="Notificações"
         className="relative rounded-lg p-2 text-ink2 transition hover:bg-panel2 hover:text-ink"
       >
-        {ICONS.bell}
+        <Bell size={20} aria-hidden />
         {unreadCount > 0 ? (
           <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-accent px-1 text-[10px] font-semibold leading-[18px] text-accent-ink">
             {unreadCount > BADGE_CAP ? `${BADGE_CAP}+` : unreadCount}

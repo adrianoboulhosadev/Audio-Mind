@@ -1,13 +1,22 @@
-/** Read by the Sidebar (the desktop column and the mobile drawer are the same
- * component), so the list of screens is one decision in one place. */
+import { Bell, FileAudio2, User, type LucideIcon } from 'lucide-react'
+
+/**
+ * The screens, in one list. Both navigations read it — the desktop column and
+ * the mobile bottom bar — so adding a screen is one edit, and the two can never
+ * disagree about what the app contains.
+ *
+ * `shortLabel` exists because the bottom bar gives each item about a thumb's
+ * width: "Meus áudios" wraps there and "Áudios" does not.
+ */
 export interface NavItem {
   href: string
   label: string
-  icon: string
+  shortLabel: string
+  Icon: LucideIcon
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/recordings', label: 'Meus áudios', icon: 'library' },
-  { href: '/notifications', label: 'Notificações', icon: 'bell' },
-  { href: '/profile', label: 'Perfil', icon: 'user' },
+  { href: '/recordings', label: 'Meus áudios', shortLabel: 'Áudios', Icon: FileAudio2 },
+  { href: '/notifications', label: 'Notificações', shortLabel: 'Avisos', Icon: Bell },
+  { href: '/profile', label: 'Perfil', shortLabel: 'Perfil', Icon: User },
 ]

@@ -14,7 +14,15 @@ export function formatDuration(totalSeconds: number): string {
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  // GB matters since the admin allowance is 1 GB: "1024.0 MB" is a correct
+  // number that nobody reads as a gigabyte.
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${trimZero(bytes / (1024 * 1024 * 1024))} GB`
+}
+
+/** 1 -> "1", 1.5 -> "1.5": a whole gigabyte should not read as "1.0 GB". */
+function trimZero(value: number): string {
+  return value.toFixed(1).replace(/\.0$/, '')
 }
 
 /**

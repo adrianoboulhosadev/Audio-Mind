@@ -2,8 +2,10 @@
 
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { AudioFile, type RecordingSource } from '@recording/adapters'
+import type { RecordingSource } from '@recording/adapters'
 import type { RecordedAudio } from '@/components/audio-recorder/hooks/use-audio-recorder'
+import { formatBytes } from '@/lib/format'
+import { useUploadAllowance } from './use-upload-allowance'
 
 interface PickedAudio {
   blob: Blob
@@ -27,11 +29,13 @@ interface UseNewRecordingArgs {
  * The composer's state: which tab, which audio, which title.
  *
  * The size check happens HERE as well as in the domain on purpose — the point is
- * to say "esse arquivo passa de 25 MB" before spending the upload, not to be the
- * rule. The rule is the AudioFile value object, and the constant comes from it
- * (re-exported by @recording/adapters), so the two can never disagree.
+ * to say "esse arquivo passa do seu limite" before spending the upload, not to
+ * be the rule. The rule is the AudioFile value object; the NUMBER comes from
+ * GET /upload/allowance, which is the same value object answering for this
+ * caller's role — so the UI can never promise what the domain refuses.
  */
 export function useNewRecording({ upload }: UseNewRecordingArgs) {
+  const allowance = useUploadAllowance()
   const [mode, setMode] = useState<RecordingSource>('record')
   const [title, setTitle] = useState('')
   const [audio, setAudio] = useState<PickedAudio | null>(null)
@@ -50,14 +54,16 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
   const onFilePicked = useCallback((file: File | null) => {
     if (!file) return setAudio(null)
 
-    if (file.size > AudioFile.MAX_SIZE_BYTES) {
-      toast.error('Esse arquivo passa de 25 MB.')
+    // No allowance loaded yet means the request is still in flight; letting the
+    // file through is safe, because the server refuses it either way.
+    if (allowance && file.size > allowance.maxSizeBytes) {
+      toast.error(`Esse arquivo passa do seu limite de ${formatBytes(allowance.maxSizeBytes)}.`)
       return
     }
 
     setAudio({ blob: file, filename: file.name, source: 'upload' })
     setTitle((current) => current || file.name.replace(/\.[^.]+$/, ''))
-  }, [])
+  }, [allowance])
 
   const reset = useCallback(() => {
     setAudio(null)
@@ -81,5 +87,16 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
     setAudio(null)
   }, [])
 
-  return { mode, switchMode, title, setTitle, audio, onRecorded, onFilePicked, submit, reset }
+  return {
+    mode,
+    switchMode,
+    title,
+    setTitle,
+    audio,
+    allowance,
+    onRecorded,
+    onFilePicked,
+    submit,
+    reset,
+  }
 }

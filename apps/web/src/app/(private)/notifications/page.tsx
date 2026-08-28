@@ -1,6 +1,8 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { CheckCheck, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
+import { IconButton } from '@/components/icon-button'
 import { Loading } from '@/components/loading'
 import { formatRelative } from '@/lib/format'
 import { useNotificationsInbox } from './hooks/use-notifications-inbox'
@@ -18,6 +20,7 @@ export default function NotificationsPage() {
     remove,
     clearAll,
   } = useNotificationsInbox()
+  const router = useRouter()
 
   if (isLoading) return <Loading />
 
@@ -40,16 +43,26 @@ export default function NotificationsPage() {
           ))}
         </div>
 
-        <div className="flex gap-3 text-xs">
+        {/* Two bulk actions, one of which empties the inbox — as icons they need
+            their names on hover, which is what IconButton's tooltip is for. */}
+        <div className="flex items-center gap-1">
           {unreadCount > 0 ? (
-            <button type="button" onClick={() => markAllAsRead()} className="text-accent hover:underline">
-              marcar todas como lidas
-            </button>
+            <IconButton
+              label="Marcar todas como lidas"
+              tone="accent"
+              tipSide="left"
+              onClick={() => markAllAsRead()}
+              icon={<CheckCheck size={18} aria-hidden />}
+            />
           ) : null}
           {items.length > 0 ? (
-            <button type="button" onClick={() => clearAll()} className="text-muted hover:text-bad">
-              limpar tudo
-            </button>
+            <IconButton
+              label="Limpar tudo"
+              tone="danger"
+              tipSide="left"
+              onClick={() => clearAll()}
+              icon={<Trash2 size={18} aria-hidden />}
+            />
           ) : null}
         </div>
       </div>
@@ -63,8 +76,12 @@ export default function NotificationsPage() {
           {items.map((item) => (
             <li
               key={item.id}
-              className={`rounded-xl border p-4 transition ${
-                item.read ? 'border-line2 bg-panel' : 'border-accent/40 bg-accent-soft/30'
+              /* Unread differs by GROUND, not by border. A coloured outline read
+                 like a validation error on a screen that has red failure notices
+                 in it; a slightly lifted background plus the dot below says "new"
+                 without competing with them. */
+              className={`relative rounded-xl border border-line2 p-4 transition ${
+                item.read ? 'bg-panel' : 'bg-accent-soft/25'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -72,37 +89,50 @@ export default function NotificationsPage() {
                   <p className="text-sm font-medium text-ink">{item.title}</p>
                   <p className="mt-1 text-sm leading-relaxed text-ink2">{item.body}</p>
                 </div>
-                <span className="shrink-0 text-[11px] text-muted">
-                  {formatRelative(item.createdAt)}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[11px] text-muted">{formatRelative(item.createdAt)}</span>
+                  {!item.read ? (
+                    <span
+                      // Decoration for the eye, words for everything else: the
+                      // dot repeats what the background already says, and a
+                      // screen reader gets the sentence instead of a bullet.
+                      role="status"
+                      aria-label="Não lida"
+                      className="h-2 w-2 shrink-0 rounded-full bg-accent"
+                    />
+                  ) : null}
+                </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-3 text-xs">
+              {/* Pulled into the card's padding — an icon button is mostly
+                  padding, and laid out normally it leaves a band of empty card. */}
+              <div className="-mb-1.5 -mr-1.5 mt-0 flex items-center justify-end gap-0.5">
                 {item.link ? (
-                  <Link
-                    href={item.link}
-                    onClick={() => !item.read && markAsRead(item.id)}
-                    className="text-accent hover:underline"
-                  >
-                    abrir
-                  </Link>
+                  <IconButton
+                    label="Abrir"
+                    tone="accent"
+                    onClick={() => {
+                      if (!item.read) markAsRead(item.id)
+                      router.push(item.link!)
+                    }}
+                    icon={<SquareArrowOutUpRight size={17} aria-hidden />}
+                  />
                 ) : null}
                 {!item.read ? (
-                  <button
-                    type="button"
+                  <IconButton
+                    label="Marcar como lida"
+                    tipSide="left"
                     onClick={() => markAsRead(item.id)}
-                    className="text-muted hover:text-ink"
-                  >
-                    marcar como lida
-                  </button>
+                    icon={<CheckCheck size={17} aria-hidden />}
+                  />
                 ) : null}
-                <button
-                  type="button"
+                <IconButton
+                  label="Excluir"
+                  tone="danger"
+                  tipSide="left"
                   onClick={() => remove(item.id)}
-                  className="text-muted hover:text-bad"
-                >
-                  excluir
-                </button>
+                  icon={<Trash2 size={17} aria-hidden />}
+                />
               </div>
             </li>
           ))}

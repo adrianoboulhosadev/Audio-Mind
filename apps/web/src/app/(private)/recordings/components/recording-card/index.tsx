@@ -1,7 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { SquareArrowOutUpRight, Trash2 } from 'lucide-react'
 import type { RecordingDTO } from '@recording/adapters'
+import { IconButton } from '@/components/icon-button'
 import { StatusBadge } from '@/components/status-badge'
 import { formatBytes, formatDuration, formatRelative } from '@/lib/format'
 
@@ -11,6 +14,8 @@ interface RecordingCardProps {
 }
 
 export function RecordingCard({ recording, onDelete }: RecordingCardProps) {
+  const router = useRouter()
+
   return (
     <li className="rounded-xl border border-line2 bg-panel p-4 transition hover:border-accent/50">
       <div className="flex items-start justify-between gap-3">
@@ -32,17 +37,26 @@ export function RecordingCard({ recording, onDelete }: RecordingCardProps) {
         </p>
       ) : null}
 
-      <div className="mt-3 flex items-center gap-3">
-        <Link href={`/recordings/${recording.id}`} className="text-xs text-accent hover:underline">
-          abrir
-        </Link>
-        <button
-          type="button"
+      {/* The title above is already the link to the recording. These are the same
+          two actions as icons, sitting where a row of controls is expected —
+          each one keeps its words in a tooltip and in its accessible name. */}
+      {/* Negative margins pull the row into the card's own padding: an icon
+          button is mostly padding, so laid out normally it leaves a band of
+          empty card under the text. */}
+      <div className="-mb-1.5 -mr-1.5 mt-0 flex items-center justify-end gap-0.5">
+        <IconButton
+          label="Abrir"
+          tone="accent"
+          onClick={() => router.push(`/recordings/${recording.id}`)}
+          icon={<SquareArrowOutUpRight size={17} aria-hidden />}
+        />
+        <IconButton
+          label="Excluir"
+          tone="danger"
+          tipSide="left"
           onClick={() => onDelete(recording)}
-          className="text-xs text-muted transition hover:text-bad"
-        >
-          excluir
-        </button>
+          icon={<Trash2 size={17} aria-hidden />}
+        />
       </div>
     </li>
   )
