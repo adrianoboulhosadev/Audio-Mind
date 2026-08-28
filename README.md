@@ -8,7 +8,8 @@ que você ouviu uma vez e não quer ouvir de novo pra lembrar o que foi dito.
 
 ## Como funciona
 
-1. Você **grava no navegador** ou **envia um arquivo** (até 25 MB / 30 min).
+1. Você **grava no navegador** ou **envia um arquivo** (até 25 MB / 30 min; contas admin sobem até 1 GB,
+   sem limite de duração).
 2. O backend guarda o áudio e **enfileira** o processamento — a resposta é
    imediata, você pode fechar a página.
 3. O **worker** transcreve o áudio (Whisper, na Groq), manda a transcrição pro

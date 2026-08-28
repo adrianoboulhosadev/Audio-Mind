@@ -180,6 +180,18 @@ pending -> transcribing -> summarizing -> ready
   `createGroqClient()` resolve com `httpAgent: new HttpsAgent({ keepAlive: false })`.
 - **`GROQ_API_KEY` é fail-closed**: sem a chave o worker **recusa iniciar**. Um worker que sobe sem
   IA só serviria pra marcar todo áudio como falho.
+- **O áudio é REAMOSTRADO antes de subir** (`audio-compressor.ts`): 16 kHz mono, Opus 32 kbps, via
+  ffmpeg. O limite da API é de **BYTES, não de minutos**, e Whisper reamostra pra 16 kHz mono de
+  qualquer jeito — mandar um master 48 kHz estéreo é gastar a cota com o que o modelo joga fora. Na
+  prática o teto sai de "meia hora, se o formato ajudar" pra ~1h30 (medido: 494 MB → 16,8 MB). Opus e
+  não FLAC porque FLAC é lossless e 25 MB compraria pouco mais que antes.
+  - **Nunca lança por falta de ffmpeg**: cai pro arquivo original. Worker que recusasse transcrever
+    uma gravação de 2 MB por não achar o ffmpeg trocaria um pipeline que funciona por um problema que
+    aquele arquivo não tem. Quem decide se ficou pequeno o bastante é o chamador.
+  - **Nunca manda MAIS bytes que o original**: reencodar arquivo já pequeno pode inchar.
+  - O que ainda passa de 25 MB depois disso vira `failed` com motivo próprio — e o áudio **continua na
+    biblioteca**, tocável e baixável. Fatiar em blocos ficou pra depois.
+  - `ffmpeg` está no `Dockerfile` do worker; `FFMPEG_PATH` sobrescreve o binário.
 - **A MESMA chave serve pros dois passos**: `whisper-large-v3` (`audio.transcriptions`, com
   `response_format: 'verbose_json'` — é o que devolve o idioma) e o modelo de chat
   (`llama-3.3-70b-versatile`, com `response_format: json_object` e `temperature` baixa). Modelos em
@@ -197,13 +209,13 @@ Use-cases, VOs e entidades lançam erros **tipados** do `shared` (base `DomainEr
 `code`/`value`/`extras` + `throwError`/`create`). O domínio **não conhece HTTP** — quem traduz
 tipo → status é o `DomainExceptionFilter` (global, em `apps/backend/src/shared`), por `instanceof`:
 
-| Erro (shared) | HTTP | Quando |
-|---|---|---|
-| `ValidationError` | 400 | entrada/regra de formato; **único acumulável** via `Validator.combineErrors` |
-| `UnauthorizedError` | 401 | credencial inválida / não autenticado |
-| `AccessDeniedError` | 403 | autenticado, sem permissão |
-| `NotFoundError` | 404 | recurso inexistente |
-| `ConflictError` | 409 | estado duplicado/conflitante |
+| Erro (shared)       | HTTP | Quando                                                                       |
+| ------------------- | ---- | ---------------------------------------------------------------------------- |
+| `ValidationError`   | 400  | entrada/regra de formato; **único acumulável** via `Validator.combineErrors` |
+| `UnauthorizedError` | 401  | credencial inválida / não autenticado                                        |
+| `AccessDeniedError` | 403  | autenticado, sem permissão                                                   |
+| `NotFoundError`     | 404  | recurso inexistente                                                          |
+| `ConflictError`     | 409  | estado duplicado/conflitante                                                 |
 
 Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` (constantes no
 `shared`); body de erro `{ statusCode, errors: [{ code }] }`.
@@ -232,18 +244,44 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
   `DisplayName`. `LoginUser` responde o **mesmo erro genérico** pra e-mail inexistente, senha errada
   e conta desativada. `DeactivateUser` também derruba **todas as sessões** — uma conta que não pode
   mais entrar não pode continuar logada em outro dispositivo até o refresh expirar. **Cadastro é
-  aberto** (não existe portaria de admin, nem role): registrar **não loga**, o usuário cai no login
+  aberto** e toda conta nasce comum: registrar **não loga**, o usuário cai no login
   com a conta criada, então existe um caminho só pra virar sessão.
 - **recording** — o áudio e o estágio do pipeline. `Recording` (AggregateRoot) + VOs `AudioFile` e
   `RecordingTitle`. `AudioFile` é onde moram os limites que fazem um arquivo ser processável:
   formato aceito pelo modelo (mp3, m4a/mp4, wav, ogg, flac, webm — **com os aliases**, porque
-  navegador chama o mesmo container de nomes diferentes), **25 MB** (teto da própria API de
-  transcrição) e **30 min**. Duração **zero é o navegador falhando na metadata**, não áudio curto —
-  por isso é recusada. `source` (`record`/`upload`) é só o que o usuário fez; o pipeline não ramifica.
+  navegador chama o mesmo container de nomes diferentes) e os **tetos de tamanho/duração**. Duração
+  **zero é o navegador falhando na metadata**, não áudio curto — por isso é recusada. `source` (`record`/`upload`) é só o que o usuário fez; o pipeline não ramifica.
   Renomear é a **única** coisa editável depois do upload. `GetRecordingForProcessingQuery` é a
   leitura do SISTEMA (sem dono, porque um job de fila não tem chamador autenticado) e é um use case
   **separado** de propósito: um `ownerId?` opcional está a um argumento esquecido de virar leitura
   sem guarda numa rota HTTP.
+
+### Limites de upload por papel (TRAVADO)
+
+- **Os tetos NÃO são constante** — dependem de quem está subindo. `AudioFile.ALLOWANCES` tem
+  `standard` (**25 MB / 30 min**, o teto da própria API de transcrição) e `extended`
+  (**1 GB, sem teto de duração**). Duração **zero** continua recusada nos dois: é metadata quebrada.
+- **`AudioAllowance` é conceito de `recording`, não de `auth`.** O contexto do áudio não sabe o que é
+  role; quem lê a role e escolhe a allowance é a camada de app (`apps/backend/src/auth/upload-allowance.ts`),
+  que é exatamente o que impede os dois contextos de se importarem.
+- **A allowance viaja AO LADO do `ownerId`, nunca no corpo** (`facade.uploadRecording(ownerId,
+allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior.
+- **O teto é regra de ADMISSÃO, não invariante da linha.** `AudioFile` só confere os limites quando
+  recebe `admissionLimits`; um repositório reconstituindo uma linha não passa nenhum. Sem isso, apertar
+  a allowance amanhã tornaria o arquivo de 900 MB de ontem impossível de carregar.
+- **`AudioFile.limitsFor()` é fail-closed**: allowance ausente ou desconhecida = a apertada.
+- **O upload usa interceptor próprio** (`AudioUploadInterceptor`), não o `FileInterceptor` do Nest:
+  o `FileInterceptor` fixa as opções do multer na decoração e não consegue dizer "25 MB pra esse,
+  1 GB pra aquele". Rodar o multer por request também é o que faz o excedente ser abortado NO MEIO
+  do stream (conta comum não escreve 1 GB no disco pra só então ouvir não) e devolver
+  `AUDIO_TOO_LARGE` no envelope de domínio, em vez do 413 do Nest que o front não sabe ler.
+- **`GET /upload/allowance`** devolve os tetos do chamador. O front busca em vez de importar
+  constante — a UI precisa dizer o número certo pra ESSA conta.
+- **Virar admin é `UPDATE users SET role='admin'`**, rodado à mão por quem é dono do banco. Não existe
+  tela, rota nem convite: promover é raro e deliberado, e não tem por que ser um botão. `toUserRole`
+  é fail-closed — qualquer coisa que não seja exatamente `'admin'` lê como usuário comum, então um
+  typo no UPDATE nunca dá privilégio.
+
 - **transcription** — o texto que o modelo ouviu. `Transcription` + VO `TranscriptText`. **Resposta
   vazia NÃO é transcrição** (`EMPTY_TRANSCRIPT`): silêncio, arquivo ilegível ou chamada falha têm
   que virar gravação FALHA que o usuário entende, nunca resumo de nada. A porta
@@ -294,7 +332,8 @@ controllers usam **sempre** esse id (via `@authenticatedUser`), nunca id vindo d
   entregaria todo arquivo a quem descobrisse a URL. Eles saem por **rota autenticada**
   (`/recording/:id/audio`, `/summary/recording/:id/pdf`). A contrapartida, aceita: o navegador não
   pode apontar um `<audio src>` pra rota (não manda header), então o front **busca como blob** e
-  toca um object URL — o arquivo inteiro baixa antes de tocar, o que é aceitável com teto de 25 MB.
+  toca um object URL — o arquivo inteiro baixa antes de tocar. É a contrapartida de o áudio não ser
+  público (e o custo cresce com a allowance de 1 GB do admin).
   ⚠️ `URL.revokeObjectURL` no teardown não é opcional: sem ele cada visita à tela vaza outra cópia
   do arquivo na memória.
 - **`resolveUploadPath` recusa caminho que escape da raiz de uploads.** O caminho chega no **CORPO**
@@ -403,12 +442,22 @@ validação de UI simples).
   estica a caixa além da viewport, e item que transborda **deixa de ser centralizado**.
 - **Não existe `AppShell`**: `Sidebar` e `Header` são compostos direto no `(private)/layout.tsx`
   (que também abre o SSE). Um componente que só embrulha outros dois não ganha nada por existir.
-- **A navegação é COLUNA no desktop e GAVETA no mobile**: enquanto era coluna em toda largura, ela
-  comia a tela do celular e espremia a página ao lado. O estado "gaveta aberta" mora num contexto
-  porque o botão que abre está no `Header` e a gaveta é o `Sidebar` — dois irmãos que o layout monta
-  lado a lado.
+- **A navegação é COLUNA no desktop e BARRA INFERIOR no mobile** — `Sidebar` (`hidden lg:flex`) e
+  `BottomNav` (`lg:hidden`), dois componentes, não um responsivo. Já foi gaveta e não devia: uma
+  gaveta compra espaço pra menu longo cobrando um toque por viagem, e este app tem TRÊS telas — só
+  colocava o app inteiro atrás de um hambúrguer. O que os dois precisam concordar (a lista de telas)
+  é compartilhado como DADO (`sidebar/data/nav-items.ts`), não como componente. A barra leva
+  `pb-[env(safe-area-inset-bottom)]` e o `main` leva `pb-24 lg:pb-6`, senão ela cobre o fim da página.
 - **Route groups por acesso**: `(public)` (login/register) e `(private)`. Guard no `layout.tsx` do
   grupo, nunca por página.
+- **Ícones são do `lucide-react`** — antes eram SVG inline num mapa `ICONS`, o que parava de pagar
+  assim que ação virou ícone em três telas. Ação só com ícone SEMPRE passa pelo `IconButton`, que
+  carrega o rótulo como `aria-label` E como tooltip (a mesma string, então não divergem). O tooltip é
+  CSS num irmão, não `title=`: `title` demora ~1s, não aceita a paleta e nunca aparece pra quem
+  navega por teclado.
+- **Tooltip perto da borda direita abre pra ESQUERDA** (`tipSide="left"`). Não é estética: um tooltip
+  centralizado é posicionado em absolute, e passando da borda ele ALARGA o documento — a página
+  inteira ganha rolagem horizontal no celular.
 - **Reusar os tipos dos `@ctx/adapters`** via `import type`. Não redeclarar contratos. O
   `AudioFile.MAX_SIZE_BYTES` usado pra avisar antes do upload vem do **próprio VO** reexportado —
   duplicar o número seria uma UI que promete o que o domínio recusa.
@@ -418,6 +467,12 @@ validação de UI simples).
   axios com `withCredentials`; interceptor de 401 chama `/auth/refresh` (**dedup do refresh em
   voo** — sem isso cinco requests simultâneos rotacionam o token cinco vezes e a detecção de reuso
   derruba a sessão inteira) e repete; silent refresh no boot.
+- **O player é NOSSO** (`audio-player/`), com o `<audio>` sem `controls`. O nativo é pintado pelo
+  Chromium como uma barra branca — a única superfície do app que ignorava a paleta, no topo de toda
+  tela de detalhe. Ter os controles também é o que dá pular 15s e velocidade de reprodução, que é o
+  que se quer de uma hora de reunião. O `<audio>` continua sendo a fonte da verdade de tempo e
+  estado; o hook só espelha. Os controles **quebram linha** (`flex-wrap`) porque a 390px os chips de
+  velocidade saíam da tela.
 - **A duração do áudio é medida no NAVEGADOR** (`lib/audio-duration.ts`): o servidor teria que
   decodificar o arquivo pra saber, o que significa embarcar ffmpeg pra preencher uma coluna. O
   vaivém com `Infinity` não é paranoia — um WebM do `MediaRecorder` não carrega duração no header, e
@@ -426,7 +481,7 @@ validação de UI simples).
 
 ## Testes
 
-- Têm testes: **`core`**, **`shared`** e **`apps/worker`**. Os testes cobrem **invariantes de
+- Têm testes: **`core`**, **`shared`**, **`apps/worker`** e **`apps/web`**. Os testes cobrem **invariantes de
   VOs/entidades** (`AudioFile` recusa 25 MB+, `Recording` não pula etapa, `TranscriptText` recusa
   vazio) além dos use-cases.
 - Use-cases testados com **fakes das portas em memória** em `test/in-memory/` (cada fake
@@ -436,6 +491,10 @@ validação de UI simples).
 - No worker os testes cobrem o **mapper** (o modelo devolvendo lixo), os **motivos de falha** e o
   **`processRecording`** ponta a ponta com dublês — o que se testa ali é a ORDEM e a
   resumibilidade, não os adapters.
+- **No `apps/web` (jsdom + Testing Library) o alvo é CONTRATO de componente, não pixel.** O app ficou
+  sem teste até um `Field` que não era `forwardRef` engolir calado o ref do react-hook-form: o
+  `check-types` passava, o `build` passava, e ninguém conseguia logar. React só avisa do ref
+  descartado em desenvolvimento, então é exatamente a classe de bug que precisa de teste.
 - Jest + ts-jest; `moduleNameMapper` resolve `shared`/`@ctx/*` pro source.
 
 ## Dev e verificação
