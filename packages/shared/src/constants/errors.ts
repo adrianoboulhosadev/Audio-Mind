@@ -25,6 +25,8 @@ export const Errors = {
   RECORDING_NOT_FOUND: 'RECORDING_NOT_FOUND',
   RECORDING_TITLE_TOO_LONG: 'RECORDING_TITLE_TOO_LONG',
   UNSUPPORTED_AUDIO_FORMAT: 'UNSUPPORTED_AUDIO_FORMAT',
+  // Carries the ceiling in `extras.max` because the ceiling is NOT a constant:
+  // it depends on who is uploading (see AudioFile.ALLOWANCES).
   AUDIO_TOO_LARGE: 'AUDIO_TOO_LARGE',
   AUDIO_TOO_LONG: 'AUDIO_TOO_LONG',
   INVALID_AUDIO_DURATION: 'INVALID_AUDIO_DURATION',
