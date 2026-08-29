@@ -9,6 +9,7 @@ import { IconButton } from '@/components/icon-button'
 import { Loading } from '@/components/loading'
 import { StatusBadge } from '@/components/status-badge'
 import { formatBytes, formatDateTime, formatDuration } from '@/lib/format'
+import { AskPanel } from './components/ask-panel'
 import { AudioPlayer } from './components/audio-player'
 import { SummaryPanel } from './components/summary-panel'
 import { TranscriptPanel } from './components/transcript-panel'
@@ -114,6 +115,9 @@ export default function RecordingDetailPage() {
       ) : null}
 
       {summary ? <SummaryPanel summary={summary} recordingId={recording.id} /> : null}
+      {/* Needs a transcript, not a summary: the question is answered from what
+          was SAID. */}
+      {transcription ? <AskPanel recordingId={recording.id} /> : null}
       {transcription ? (
         <TranscriptPanel transcription={transcription} player={player} />
       ) : null}
