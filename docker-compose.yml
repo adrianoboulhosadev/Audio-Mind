@@ -55,6 +55,17 @@ services:
       UPLOADS_DIR: /repo/apps/backend/uploads
     ports:
       - '127.0.0.1:5001:5000'
+    # Up is not the same as working: a backend that lost Postgres answers 500 to
+    # everything while docker happily reports it as running. The check touches
+    # the database (see the /health route).
+    healthcheck:
+      test: ['CMD', 'node', '/repo/apps/backend/healthcheck.js']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The first boot runs the migrations before serving; failing the check
+      # while that happens would restart the container mid-migration.
+      start_period: 60s
     volumes:
       # The audio people upload and the PDFs the pipeline generates live on disk,
       # not in the database — WITHOUT this volume, recreating the container
@@ -78,6 +89,15 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
       REDIS_URL: redis://redis:6379
       UPLOADS_DIR: /repo/apps/backend/uploads
+    # The worker has no port to answer on, so the check reads the heartbeat file
+    # the process keeps touching — proof that it is alive AND that its event loop
+    # is turning, which `restart: unless-stopped` cannot tell on its own.
+    healthcheck:
+      test: ['CMD', 'node', '/repo/apps/worker/healthcheck.js']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       # THE SAME volume as the backend, and it is not optional: the worker reads
       # the audio from here and writes the summary PDF back into it. Two separate
