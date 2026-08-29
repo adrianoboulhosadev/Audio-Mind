@@ -3,6 +3,8 @@ import {
   TranscriptionDTO,
   TranscriptionQueryRepository,
   TranscriptionRepository,
+  TranscriptMatchDTO,
+  findTranscriptMatch,
 } from '../../src'
 
 interface TranscriptionRow {
@@ -48,18 +50,31 @@ export default class TranscriptionRepositoryInMemory
     return row ? new Transcription({ ...row }) : null
   }
 
-  async searchRecordingIdsQuery(
+  // Same two steps as the Prisma adapter: the rows that mention the term, then
+  // the domain function saying WHERE in each one.
+  async searchMatchesQuery(
     term: string,
     recordingIds: string[],
     limit: number,
-  ): Promise<string[]> {
+  ): Promise<TranscriptMatchDTO[]> {
     const lowered = term.toLowerCase()
     return this.rows
       .filter(
         (row) => recordingIds.includes(row.recordingId) && row.text.toLowerCase().includes(lowered),
       )
       .slice(0, limit)
-      .map((row) => row.recordingId)
+      .map((row) => {
+        const match = findTranscriptMatch(
+          row.text,
+          row.segments.map((segment) => ({
+            startSeconds: segment.start,
+            endSeconds: segment.end,
+            text: segment.text,
+          })),
+          term,
+        )
+        return { recordingId: row.recordingId, ...(match ?? { excerpt: '', startSeconds: null }) }
+      })
   }
 
   async deleteByRecording(recordingId: string): Promise<void> {

@@ -3,6 +3,7 @@ import {
   TranscriptionDTO,
   TranscriptionQueryRepository,
   TranscriptionRepository,
+  TranscriptMatchDTO,
 } from '@transcription/core'
 import {
   DeleteTranscriptionController,
@@ -37,9 +38,13 @@ export default class TranscriptionFacade {
     return new GetTranscriptionController(this.queryRepository!).execute(recordingId)
   }
 
-  /** Which of THESE recordings have a transcript mentioning the term. Ids in,
-   * ids out — this context never learns who owns them. */
-  async searchTranscripts(term: string, recordingIds: string[], limit?: number): Promise<string[]> {
+  /** Which of THESE recordings have a transcript mentioning the term, and where
+   * in each. Ids in, matches out — this context never learns who owns them. */
+  async searchTranscripts(
+    term: string,
+    recordingIds: string[],
+    limit?: number,
+  ): Promise<TranscriptMatchDTO[]> {
     return new SearchTranscriptsController(this.queryRepository!).execute(term, recordingIds, limit)
   }
 

@@ -14,12 +14,14 @@ async function setup() {
   return { repository, useCase: new SearchTranscriptsQuery(repository) }
 }
 
-test('answers which recordings were TALKING about the term', async () => {
+test('answers WHICH recordings were talking about the term, and where', async () => {
   const { useCase } = await setup()
 
   const found = await useCase.execute({ term: 'contrato', recordingIds: ['rec-1'] })
 
-  expect(found).toEqual(['rec-1'])
+  expect(found).toHaveLength(1)
+  expect(found[0].recordingId).toBe('rec-1')
+  expect(found[0].excerpt).toContain('contrato')
 })
 
 test('only searches the recordings it was handed — ownership lives elsewhere', async () => {

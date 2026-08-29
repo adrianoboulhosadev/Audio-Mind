@@ -1,3 +1,3 @@
-import type { TranscriptionDTO, TranscriptSegmentDTO } from '@transcription/core'
+import type { TranscriptionDTO, TranscriptSegmentDTO, TranscriptMatchDTO } from '@transcription/core'
 
-export type { TranscriptionDTO, TranscriptSegmentDTO }
+export type { TranscriptionDTO, TranscriptSegmentDTO, TranscriptMatchDTO }
