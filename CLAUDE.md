@@ -342,7 +342,9 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   nome; **`DELETE /user/me` apaga a conta e TUDO do usuário** — ver "Exclusão de conta (LGPD)")
 - `upload/audios` (POST — só o próprio usuário autenticado; devolve `{ url, mimeType, sizeBytes }`)
 - `recording` (`POST /`, `GET /`, `GET /:id`, `PATCH /:id` [renomear], `DELETE /:id`,
-  `POST /:id/retry`, `GET /:id/audio` [stream])
+  `POST /:id/retry`, `GET /:id/audio` [download inteiro], `GET /:id/audio/link` [devolve o link
+  assinado do streaming]) e `recording/stream/:id` (GET, **Range**, autenticado por token de
+  capacidade na query string — ver "Áudio: streaming por Range")
 - `transcription/recording/:id` (GET)
 - `summary/recording/:id` (GET) e `summary/recording/:id/pdf` (GET, download)
 - `notification` (`GET /` [`?limit=`, devolve `{ unreadCount, items }`], `POST /read-all`,
@@ -362,12 +364,11 @@ controllers usam **sempre** esse id (via `@authenticatedUser`), nunca id vindo d
   o mesmo diretório em caminhos absolutos diferentes.
 - **A pasta NÃO é servida estaticamente.** Áudio e resumo são privados, e um mount estático
   entregaria todo arquivo a quem descobrisse a URL. Eles saem por **rota autenticada**
-  (`/recording/:id/audio`, `/summary/recording/:id/pdf`). A contrapartida, aceita: o navegador não
-  pode apontar um `<audio src>` pra rota (não manda header), então o front **busca como blob** e
-  toca um object URL — o arquivo inteiro baixa antes de tocar. É a contrapartida de o áudio não ser
-  público (e o custo cresce com a allowance de 1 GB do admin).
-  ⚠️ `URL.revokeObjectURL` no teardown não é opcional: sem ele cada visita à tela vaza outra cópia
-  do arquivo na memória.
+  (`/recording/stream/:id`, `/summary/recording/:id/pdf`). Pro áudio isso virou **streaming por
+  Range** com token de capacidade (ver "Áudio: streaming por Range"); só o WebM gravado no navegador
+  ainda baixa inteiro como blob, porque o container não é buscável.
+  ⚠️ No caminho do blob, `URL.revokeObjectURL` no teardown não é opcional: sem ele cada visita à
+  tela vaza outra cópia do arquivo na memória.
 - **`resolveUploadPath` recusa caminho que escape da raiz de uploads.** O caminho chega no **CORPO**
   do request (o cliente sobe o arquivo, recebe o caminho e depois posta na criação da gravação), então
   sem essa checagem um `/uploads/../../etc/passwd` forjado seria lido e servido. Mora na camada de
@@ -376,6 +377,25 @@ controllers usam **sempre** esse id (via `@authenticatedUser`), nunca id vindo d
   manda assim. `normalizeMimeType` tira os parâmetros uma vez, na borda.
 - O nome do arquivo salvo é **um uuid**, nunca o nome que o cliente mandou: isso deixaria o request
   escolher onde o arquivo cai e o que sobrescreve.
+
+### Áudio: streaming por Range (TRAVADO)
+
+- **O `<audio>` não manda header**, e a pasta de uploads não é pública — então tocar por URL exige
+  credencial NA URL. Não é o access token: é um **token de capacidade** (`audio-access-token.ts`)
+  assinado com o mesmo `JWT_SECRET`, que vale **2h**, cita **UMA** gravação e traz `purpose`. Um
+  token de capacidade que servisse como access token seria um buraco; o `purpose` é o que fecha.
+- **O dono é reconferido contra a gravação** mesmo com o token citando o id: capacidade não
+  substitui a regra que responde `RECORDING_NOT_FOUND` pro áudio dos outros.
+- **`RecordingStreamController` fica FORA do `AuthMiddleware`** (que é por classe e lê header),
+  exatamente como o `NotificationStreamController`. Autenticação por **guard**.
+- **WebM gravado no navegador continua baixando inteiro** (`GET /:id/audio`, header): o container do
+  `MediaRecorder` não tem duração no header nem índice de busca, então NENHUM player consegue pular
+  nele por byte range — precisa do arquivo na mão. Range ali não compraria nada e custaria a barra
+  de progresso. Todo o resto (mp3, m4a, wav, ogg, flac) toca por streaming.
+- **416 é resposta de verdade** (`Content-Range: bytes */size`): player que pede range inválido
+  precisa ouvir isso, não um 200 com o arquivo todo.
+- No nginx o bloco do stream tem `proxy_buffering off` — com buffering o Nginx tenta ler a resposta
+  inteira do upstream, que é exatamente o oposto de "me manda 300 KB perto do minuto 40".
 
 ## Banco de dados
 
