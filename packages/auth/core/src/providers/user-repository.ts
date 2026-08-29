@@ -9,4 +9,10 @@ export interface UserRepository {
   updateLastLogin(id: string): Promise<void>
   updateProfile(id: string, fields: { name?: string | null }): Promise<void>
   deactivate(id: string): Promise<void>
+  /**
+   * ERASES the row. Deactivating keeps the person's data and only closes the
+   * door; deleting is what the profile screen offers, and the LGPD's right to
+   * elimination means the record itself stops existing.
+   */
+  delete(id: string): Promise<void>
 }

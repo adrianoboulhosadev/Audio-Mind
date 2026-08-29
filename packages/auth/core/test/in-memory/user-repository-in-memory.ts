@@ -79,6 +79,11 @@ export default class UserRepositoryInMemory implements UserRepository, UserQuery
     if (row) row.active = false
   }
 
+  async delete(id: string): Promise<void> {
+    const index = this.rows.findIndex((current) => current.id === id)
+    if (index >= 0) this.rows.splice(index, 1)
+  }
+
   async findByIdQuery(id: string): Promise<UserDTO | null> {
     const row = this.rows.find((current) => current.id === id)
     if (!row) return null
