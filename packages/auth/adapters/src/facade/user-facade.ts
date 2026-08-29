@@ -14,7 +14,7 @@ import {
   RefreshTokenController,
   LogoutUserController,
   ChangePasswordController,
-  DeactivateUserController,
+  DeleteUserController,
   FindUserByIdController,
   UpdateProfileController,
 } from '../controllers'
@@ -80,8 +80,8 @@ export default class UserFacade {
     await new ChangePasswordController(this.userRepository!, this.hashProvider!).execute(userId, input)
   }
 
-  async deactivateUser(userId: string): Promise<void> {
-    await new DeactivateUserController(this.userRepository!, this.sessionRepository!).execute(userId)
+  async deleteUser(userId: string): Promise<void> {
+    await new DeleteUserController(this.userRepository!, this.sessionRepository!).execute(userId)
   }
 
   async findUserById(id: string): Promise<UserDTO> {
