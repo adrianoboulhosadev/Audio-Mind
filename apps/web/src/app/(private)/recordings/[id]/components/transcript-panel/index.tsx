@@ -19,13 +19,18 @@ import { useTranscriptPanel } from './hooks/use-transcript-panel'
 export function TranscriptPanel({
   transcription,
   player,
+  defaultOpen,
 }: {
   transcription: TranscriptionDTO
   player: AudioPlayerState
+  /** Open on arrival — a search sent the reader here to see one line. */
+  defaultOpen?: boolean
 }) {
-  const { open, toggle, activeIndex } = useTranscriptPanel(
+  const { open, toggle, activeIndex, listRef, activeRef, onManualScroll } = useTranscriptPanel(
     transcription.segments,
     player.currentTime,
+    player.playing,
+    defaultOpen,
   )
 
   return (
@@ -50,9 +55,17 @@ export function TranscriptPanel({
         transcription.segments.length > 0 ? (
           // Scrolls inside itself: an hour of speech is hundreds of lines, and a
           // page that never ends is a page nobody scrolls to the bottom of.
-          <ul className="mt-4 max-h-96 overflow-y-auto border-t border-line pt-2 animate-fadeUp">
+          <ul
+            ref={listRef}
+            onWheel={onManualScroll}
+            onTouchMove={onManualScroll}
+            className="mt-4 max-h-96 overflow-y-auto border-t border-line pt-2 animate-fadeUp"
+          >
             {transcription.segments.map((segment, index) => (
-              <li key={`${segment.startSeconds}-${index}`}>
+              <li
+                key={`${segment.startSeconds}-${index}`}
+                ref={index === activeIndex ? activeRef : undefined}
+              >
                 <button
                   type="button"
                   onClick={() => player.playFrom(segment.startSeconds)}

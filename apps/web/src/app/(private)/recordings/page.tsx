@@ -76,8 +76,14 @@ export default function RecordingsPage() {
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {recordings.map((recording) => (
-              <RecordingCard key={recording.id} recording={recording} onDelete={askToDelete} />
+            {recordings.map(({ recording, excerpt, startSeconds }) => (
+              <RecordingCard
+                key={recording.id}
+                recording={recording}
+                excerpt={excerpt}
+                startSeconds={startSeconds}
+                onDelete={askToDelete}
+              />
             ))}
           </ul>
         )}

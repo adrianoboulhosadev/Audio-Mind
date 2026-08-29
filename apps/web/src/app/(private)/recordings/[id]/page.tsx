@@ -24,6 +24,7 @@ export default function RecordingDetailPage() {
     transcription,
     refreshing,
     player,
+    startAtSeconds,
     isLoading,
     title,
     setTitle,
@@ -143,7 +144,11 @@ export default function RecordingDetailPage() {
           was SAID. */}
       {transcription ? <AskPanel recordingId={recording.id} /> : null}
       {transcription ? (
-        <TranscriptPanel transcription={transcription} player={player} />
+        <TranscriptPanel
+          transcription={transcription}
+          player={player}
+          defaultOpen={startAtSeconds !== undefined}
+        />
       ) : null}
 
       <ConfirmDialog

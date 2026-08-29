@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import type { RecordingDTO } from '@recording/adapters'
 import type { SummaryDTO } from '@summary/adapters'
@@ -32,6 +32,10 @@ import { useAudioPlayer } from './use-audio-player'
 export function useRecordingDetail(recordingId: string) {
   const queryClient = useQueryClient()
   const router = useRouter()
+  // `?t=` is how a search result hands over the moment it found: the player
+  // starts there and the transcript opens on it.
+  const startAt = Number(useSearchParams().get('t'))
+  const startAtSeconds = Number.isFinite(startAt) && startAt > 0 ? startAt : undefined
   const [title, setTitle] = useState('')
   // Reprocessing a recording that is READY throws away a transcript and a
   // summary that exist and work, so it goes through a confirmation — unlike
@@ -53,7 +57,7 @@ export function useRecordingDetail(recordingId: string) {
   // One player for the whole screen: the transcript drives the same sound the
   // controls do. It only starts loading once the recording is known — the
   // container is what decides whether the audio streams or is downloaded whole.
-  const player = useAudioPlayer(recordingId, recording?.mimeType)
+  const player = useAudioPlayer(recordingId, recording?.mimeType, startAtSeconds)
 
   const { data: summary } = useQuery({
     queryKey: ['summary', recordingId, stamp],
@@ -140,6 +144,7 @@ export function useRecordingDetail(recordingId: string) {
     transcription,
     refreshing,
     player,
+    startAtSeconds,
     isLoading,
     title,
     setTitle,

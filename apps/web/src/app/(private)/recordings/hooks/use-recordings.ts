@@ -9,6 +9,17 @@ import { readAudioDuration } from '@/lib/audio-duration'
 
 export const RECORDINGS_KEY = ['recordings']
 
+/**
+ * One search hit. The same three fields the backend composes (see its
+ * SearchResult) — a type that spans two contexts has no adapters package to live
+ * in, so both ends declare it from the DTO they already share.
+ */
+export interface SearchResult {
+  recording: RecordingDTO
+  excerpt: string | null
+  startSeconds: number | null
+}
+
 /** Below this the search does not even leave the browser. It mirrors the guard
  * in the domain (SearchMyRecordingsQuery) — which is what actually enforces it;
  * here it only spares a request that would answer nothing. */
@@ -65,7 +76,7 @@ export function useRecordings() {
     queryKey: [...RECORDINGS_KEY, 'search', term],
     enabled: searching,
     queryFn: async () => {
-      const { data } = await api.get<RecordingDTO[]>('/recording/search', { params: { q: term } })
+      const { data } = await api.get<SearchResult[]>('/recording/search', { params: { q: term } })
       return data
     },
   })
@@ -114,7 +125,10 @@ export function useRecordings() {
   })
 
   return {
-    recordings: searching ? results : library,
+    // One shape for the list either way: a plain listing simply has no excerpt.
+    recordings: searching
+      ? results
+      : library.map((recording) => ({ recording, excerpt: null, startSeconds: null })),
     isLoading,
     search,
     setSearch,

@@ -3,6 +3,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 
+/** Where this browser stopped listening to a recording. Per viewer and per
+ * device on purpose — it is a convenience, not a fact about the recording. */
+const positionKey = (recordingId: string) => `audio-mind:position:${recordingId}`
+
+/** How often the position is written down. Every timeupdate would be four
+ * writes a second for something nobody reads until the next visit. */
+const SAVE_EVERY_MS = 5_000
+
+/** Closer than this to the end counts as "finished": coming back to the last
+ * two seconds of an audio is worse than starting over. */
+const RESUME_MARGIN_SECONDS = 2
+
+function readPosition(recordingId: string): number | null {
+  try {
+    const stored = Number(localStorage.getItem(positionKey(recordingId)))
+    return Number.isFinite(stored) && stored > 0 ? stored : null
+  } catch {
+    // Private mode, or storage blocked: the player just starts from zero.
+    return null
+  }
+}
+
+function writePosition(recordingId: string, seconds: number): void {
+  try {
+    localStorage.setItem(positionKey(recordingId), String(seconds))
+  } catch {
+    // Not being able to remember where we were is not worth an error.
+  }
+}
+
+function forgetPosition(recordingId: string): void {
+  try {
+    localStorage.removeItem(positionKey(recordingId))
+  } catch {
+    // Same.
+  }
+}
+
 /** The jump the skip buttons make. Fifteen seconds is the length of a sentence
  * someone missed — long enough to be worth a button, short enough to not
  * overshoot the thing they were listening for. */
@@ -40,8 +78,13 @@ function needsFullDownload(mimeType: string): boolean {
  * this hook only mirrors what it reports. Keeping a parallel copy of "where are
  * we" is how a scrubber ends up disagreeing with the sound coming out.
  */
-export function useAudioPlayer(recordingId: string, mimeType?: string) {
+export function useAudioPlayer(recordingId: string, mimeType?: string, startAt?: number) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Applied ONCE, when the element knows how long the audio is. It holds either
+  // the moment a search sent us to (`?t=`) or where this browser stopped last
+  // time — the search wins, because it is what the person just asked for.
+  const startAtRef = useRef<number | null>(startAt ?? null)
+  const lastSavedRef = useRef(0)
   const [source, setSource] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [playing, setPlaying] = useState(false)
@@ -130,14 +173,37 @@ export function useAudioPlayer(recordingId: string, mimeType?: string) {
     ref: audioRef,
     onPlay: () => setPlaying(true),
     onPause: () => setPlaying(false),
-    onEnded: () => setPlaying(false),
-    onTimeUpdate: (event: { currentTarget: HTMLAudioElement }) =>
-      setCurrentTime(event.currentTarget.currentTime),
+    onEnded: () => {
+      setPlaying(false)
+      // Reaching the end is the one moment where "where I stopped" stops being
+      // useful — next time this audio starts from the top.
+      forgetPosition(recordingId)
+    },
+    onTimeUpdate: (event: { currentTarget: HTMLAudioElement }) => {
+      const seconds = event.currentTarget.currentTime
+      setCurrentTime(seconds)
+
+      if (Date.now() - lastSavedRef.current < SAVE_EVERY_MS) return
+      lastSavedRef.current = Date.now()
+      writePosition(recordingId, seconds)
+    },
     // A WebM from MediaRecorder carries no duration in its header, so the
     // element reports Infinity until it has seen the whole stream. Reading it on
     // `durationchange` too is what eventually gets the real number.
-    onLoadedMetadata: (event: { currentTarget: HTMLAudioElement }) =>
-      setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0),
+    onLoadedMetadata: (event: { currentTarget: HTMLAudioElement }) => {
+      const audio = event.currentTarget
+      setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
+
+      const resumeAt = startAtRef.current ?? readPosition(recordingId)
+      startAtRef.current = null
+      if (resumeAt === null) return
+      // A stored position past the end is a finished audio, not a place to go.
+      if (Number.isFinite(audio.duration) && resumeAt > audio.duration - RESUME_MARGIN_SECONDS) {
+        return
+      }
+      audio.currentTime = resumeAt
+      setCurrentTime(resumeAt)
+    },
     onDurationChange: (event: { currentTarget: HTMLAudioElement }) =>
       setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0),
     onError: () => setFailed(true),
