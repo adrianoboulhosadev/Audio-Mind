@@ -29,7 +29,13 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-line2 bg-panel shadow-pop animate-fadeUp">
+        /* On a phone the panel is NOT anchored to the bell: the bell sits a
+           couple of buttons away from the right edge, so a right-aligned panel
+           as wide as the screen starts off-screen on the LEFT — which is
+           exactly what it did, cutting the first characters of every line. It
+           spans the width instead, with a margin on both sides, and only goes
+           back to hanging under the bell from `sm` up, where there is room. */
+        <div className="fixed left-2 right-2 top-16 z-50 overflow-hidden rounded-xl border border-line2 bg-panel shadow-pop animate-fadeUp sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[22rem]">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <span className="text-sm font-medium text-ink">Notificações</span>
             {unreadCount > 0 ? (

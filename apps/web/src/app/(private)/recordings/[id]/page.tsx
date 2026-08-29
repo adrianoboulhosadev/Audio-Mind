@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Field } from '@/components/field'
+import { IconButton } from '@/components/icon-button'
 import { Loading } from '@/components/loading'
 import { StatusBadge } from '@/components/status-badge'
 import { formatBytes, formatDateTime, formatDuration } from '@/lib/format'
@@ -42,9 +44,16 @@ export default function RecordingDetailPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <Link href="/recordings" className="text-xs text-muted hover:text-ink">
-        ← Meus áudios
-      </Link>
+      {/* Just the arrow, at a size a thumb can hit: the screen the user came
+          from is already named by the header above it, so repeating "meus
+          áudios" here only crowded the top of a phone. The words stay reachable
+          as the label and the tooltip. */}
+      <IconButton
+        href="/recordings"
+        label="Voltar para meus áudios"
+        icon={<ArrowLeft size={28} aria-hidden />}
+        className="-ml-2"
+      />
 
       <section className="rounded-2xl border border-line2 bg-panel p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-3">

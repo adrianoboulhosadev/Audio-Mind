@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 export type IconButtonTone = 'default' | 'accent' | 'danger'
@@ -23,6 +24,12 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
    * anything in a right-aligned group opens to the left.
    */
   tipSide?: 'top' | 'left'
+  /**
+   * Renders the action as a LINK instead of a button (navigating IS an action —
+   * "voltar" is one). Same box, same accessible name, same tooltip: an icon-only
+   * control must never be a guess, whichever element it turns out to be.
+   */
+  href?: string
 }
 
 /**
@@ -39,19 +46,23 @@ export function IconButton({
   icon,
   tone = 'default',
   tipSide = 'top',
+  href,
   className = '',
   ...props
 }: IconButtonProps) {
+  const boxClasses = `inline-flex items-center justify-center rounded-lg p-2 transition ${TONE_CLASSES[tone]} disabled:cursor-not-allowed disabled:opacity-40 ${className}`
+
   return (
-    <span className="group relative inline-flex">
-      <button
-        type="button"
-        aria-label={label}
-        className={`inline-flex items-center justify-center rounded-lg p-2 transition ${TONE_CLASSES[tone]} disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
-        {...props}
-      >
-        {icon}
-      </button>
+    <span className="group relative inline-flex w-fit">
+      {href ? (
+        <Link href={href} aria-label={label} className={boxClasses}>
+          {icon}
+        </Link>
+      ) : (
+        <button type="button" aria-label={label} className={boxClasses} {...props}>
+          {icon}
+        </button>
+      )}
       <span
         role="tooltip"
         className={`pointer-events-none absolute z-30 whitespace-nowrap rounded-md border border-line2 bg-panel2 px-2 py-1 text-xs text-ink opacity-0 shadow-pop transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${
