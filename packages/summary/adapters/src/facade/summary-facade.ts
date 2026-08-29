@@ -1,11 +1,14 @@
 import {
+  AskedAnswerDTO,
   PdfRenderer,
   SummaryDTO,
   SummaryGenerator,
   SummaryQueryRepository,
   SummaryRepository,
+  TranscriptQuestionAnswerer,
 } from '@summary/core'
 import {
+  AskAboutTranscriptController,
   DeleteSummaryController,
   GetSummaryController,
   SearchSummariesController,
@@ -25,6 +28,9 @@ export default class SummaryFacade {
     private readonly queryRepository?: SummaryQueryRepository,
     private readonly generator?: SummaryGenerator,
     private readonly renderer?: PdfRenderer,
+    // Only the backend wires this one: asking a question happens inside an HTTP
+    // request, which is the opposite of everything else in this context.
+    private readonly answerer?: TranscriptQuestionAnswerer,
   ) {}
 
   async summarizeTranscript(input: {
@@ -55,6 +61,17 @@ export default class SummaryFacade {
 
   async getSummaryPdf(recordingId: string): Promise<string> {
     return new GetSummaryPdfController(this.queryRepository!).execute(recordingId)
+  }
+
+  /** Answers a question about ONE recording from its transcript. Stores
+   * nothing — it is a conversation about the audio, not a fact about it. */
+  async askAboutTranscript(input: {
+    recordingTitle: string
+    transcript: string
+    question: string
+    language?: string
+  }): Promise<AskedAnswerDTO> {
+    return new AskAboutTranscriptController(this.answerer!).execute(input)
   }
 
   async deleteSummary(recordingId: string): Promise<void> {

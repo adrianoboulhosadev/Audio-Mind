@@ -1,3 +1,3 @@
-import type { SummaryDTO } from '@summary/core'
+import type { SummaryDTO, AskedAnswerDTO } from '@summary/core'
 
-export type { SummaryDTO }
+export type { SummaryDTO, AskedAnswerDTO }

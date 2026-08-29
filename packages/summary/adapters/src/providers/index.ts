@@ -6,6 +6,9 @@ import type {
   GeneratedSummary,
   PdfRenderer,
   PdfRendererInput,
+  TranscriptQuestionAnswerer,
+  TranscriptQuestionInput,
+  TranscriptAnswer,
 } from '@summary/core'
 
 export type {
@@ -16,4 +19,7 @@ export type {
   GeneratedSummary,
   PdfRenderer,
   PdfRendererInput,
+  TranscriptQuestionAnswerer,
+  TranscriptQuestionInput,
+  TranscriptAnswer,
 }
