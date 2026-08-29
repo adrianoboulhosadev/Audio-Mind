@@ -17,7 +17,11 @@ export function useProfile() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [savingName, setSavingName] = useState(false)
-  const [deactivating, setDeactivating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  // The two steps the erasure asks for, in order: the person states they
+  // understand what goes away, and only then confirms it.
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     if (user) setName(user.name ?? '')
@@ -50,17 +54,19 @@ export function useProfile() {
     }
   })
 
-  const deactivate = async () => {
-    setDeactivating(true)
+  const deleteAccount = async () => {
+    setDeleting(true)
     try {
-      // The use case also revokes every open session, so there is nothing left
-      // to log out of — the front just clears its own state and leaves.
-      await api.delete('/user/deactivate')
+      // Erases the audios, the transcripts, the summaries, the PDFs, the inbox
+      // and the account itself — and revokes every session on the way out, so
+      // there is nothing left to log out of. The front just drops its own state.
+      await api.delete('/user/me')
       await logout()
       router.replace('/login')
     } catch (error) {
       toast.error(errorMessage(error))
-      setDeactivating(false)
+      setDeleting(false)
+      setConfirming(false)
     }
   }
 
@@ -72,7 +78,12 @@ export function useProfile() {
     savingName,
     passwordForm,
     changePassword,
-    deactivate,
-    deactivating,
+    deleteAccount,
+    deleting,
+    acknowledged,
+    setAcknowledged,
+    confirming,
+    openConfirm: () => setConfirming(true),
+    closeConfirm: () => setConfirming(false),
   }
 }

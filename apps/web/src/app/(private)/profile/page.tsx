@@ -1,11 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import { Button } from '@/components/button'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field } from '@/components/field'
 import { Loading } from '@/components/loading'
-import { formatDateTime } from '@/lib/format'
 import { useProfile } from './hooks/use-profile'
 
 export default function ProfilePage() {
@@ -17,10 +15,14 @@ export default function ProfilePage() {
     savingName,
     passwordForm,
     changePassword,
-    deactivate,
-    deactivating,
+    deleteAccount,
+    deleting,
+    acknowledged,
+    setAcknowledged,
+    confirming,
+    openConfirm,
+    closeConfirm,
   } = useProfile()
-  const [confirming, setConfirming] = useState(false)
 
   if (!user) return <Loading />
 
@@ -81,24 +83,58 @@ export default function ProfilePage() {
         </form>
       </section>
 
+      {/* Direito à eliminação (LGPD, Lei 13.709/2018, art. 18, VI): o que a tela
+          promete é o que o backend faz — some tudo, não é conta desativada com
+          os dados guardados atrás. Por isso o texto LISTA o que vai embora, e o
+          botão só libera depois que a pessoa marca que entendeu. */}
       <section className="rounded-2xl border border-bad/30 bg-panel p-5">
-        <h2 className="text-sm font-semibold text-bad">Desativar conta</h2>
+        <h2 className="text-sm font-semibold text-bad">Excluir minha conta e meus dados</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Você deixa de conseguir entrar e todas as sessões abertas caem na hora. Seus áudios
-          continuam no servidor — exclua os que quiser antes.
+          Ao excluir a conta, apagamos <strong className="text-ink2">todos</strong> os seus dados dos
+          nossos servidores, de forma permanente e imediata:
         </p>
-        <Button variant="danger" onClick={() => setConfirming(true)} className="mt-4">
-          Desativar
+        <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-xs leading-relaxed text-muted">
+          <li>seus áudios (os gravados aqui e os enviados por você);</li>
+          <li>as transcrições, os resumos e os PDFs gerados a partir deles;</li>
+          <li>seus avisos da caixa de entrada;</li>
+          <li>seu cadastro — nome, e-mail e senha — e todas as sessões abertas.</li>
+        </ul>
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          Não fica cópia, não dá para desfazer e não temos como recuperar nada depois. É o seu
+          direito de eliminação dos dados pessoais (LGPD, Lei nº 13.709/2018, art. 18, VI). Se quiser
+          guardar algum resumo, baixe o PDF antes.
+        </p>
+
+        <label className="mt-4 flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-ink2">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(event) => setAcknowledged(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-bad"
+          />
+          <span>
+            Estou ciente de que todos os meus dados serão apagados junto com a conta e de que essa
+            ação é definitiva.
+          </span>
+        </label>
+
+        <Button
+          variant="danger"
+          onClick={openConfirm}
+          disabled={!acknowledged || deleting}
+          className="mt-4"
+        >
+          Excluir conta e dados
         </Button>
       </section>
 
       <ConfirmDialog
         open={confirming}
-        title="Desativar sua conta?"
-        description="Você vai ser desconectado de todos os dispositivos e não vai mais conseguir entrar."
-        confirmLabel={deactivating ? 'Desativando…' : 'Desativar'}
-        onConfirm={deactivate}
-        onCancel={() => setConfirming(false)}
+        title="Excluir sua conta e todos os seus dados?"
+        description="Seus áudios, transcrições, resumos, PDFs e avisos serão apagados junto com o cadastro. É definitivo — não temos como recuperar depois."
+        confirmLabel={deleting ? 'Excluindo…' : 'Excluir tudo'}
+        onConfirm={deleteAccount}
+        onCancel={closeConfirm}
       />
     </div>
   )
