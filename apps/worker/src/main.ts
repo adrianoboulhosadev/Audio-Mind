@@ -33,7 +33,7 @@ function main(): void {
   // that boots without AI would just mark every audio as failed.
   const groqConfig: GroqConfig = {
     apiKey: process.env.GROQ_API_KEY ?? '',
-    model: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+    model: process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
     transcriptionModel: process.env.GROQ_TRANSCRIPTION_MODEL ?? 'whisper-large-v3',
     characterLimit: Number(process.env.TRANSCRIPT_CHAR_LIMIT ?? 24_000),
   }

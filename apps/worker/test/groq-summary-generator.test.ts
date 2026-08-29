@@ -1,9 +1,9 @@
-import { GroqSummaryGenerator } from '../src/extraction/groq-summary-generator'
+import { GroqSummaryGenerator, parseSummaryJson } from '../src/extraction/groq-summary-generator'
 import { GroqConfig } from '../src/extraction'
 
 const CONFIG: GroqConfig = {
   apiKey: 'test-key',
-  model: 'llama-3.3-70b-versatile',
+  model: 'openai/gpt-oss-120b',
   transcriptionModel: 'whisper-large-v3',
   characterLimit: 1000,
 }
@@ -55,9 +55,9 @@ test('falls back to the next model when the key is not entitled to the configure
 
   const summary = await generator.generate(input)
 
-  expect(asked).toEqual([CONFIG.model, 'llama-3.1-8b-instant'])
+  expect(asked).toEqual([CONFIG.model, 'openai/gpt-oss-20b'])
   // The row records what actually wrote the summary, not what was configured.
-  expect(summary.model).toBe('llama-3.1-8b-instant')
+  expect(summary.model).toBe('openai/gpt-oss-20b')
 })
 
 test('remembers the model that worked — the next audio does not pay the refusal again', async () => {
@@ -71,7 +71,7 @@ test('remembers the model that worked — the next audio does not pay the refusa
   asked.length = 0
   await generator.generate(input)
 
-  expect(asked).toEqual(['llama-3.1-8b-instant'])
+  expect(asked).toEqual(['openai/gpt-oss-20b'])
 })
 
 test('a failure that is NOT about the model is thrown as it is, without spending another model', async () => {
@@ -93,4 +93,30 @@ test('gives up with a sentence naming every model tried', async () => {
   await expect(generator.generate(input)).rejects.toThrow(
     /No Groq chat model is available for this API key/,
   )
+})
+
+test('a model this key no longer has (an old GROQ_MODEL in .env) is skipped, not fatal', async () => {
+  // Exactly the state a worker boots in after Groq retires the configured
+  // model: the .env still names it, the key cannot use it any more.
+  const generator = new GroqSummaryGenerator({ ...CONFIG, model: 'llama-3.3-70b-versatile' })
+  const asked = stubClient(generator, (model) => {
+    if (model.startsWith('llama')) throw refusal(model)
+    return ANSWER
+  })
+
+  const summary = await generator.generate(input)
+
+  expect(asked).toEqual(['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'])
+  expect(summary.model).toBe('openai/gpt-oss-120b')
+})
+
+test('reads the JSON even when the model fences it or talks around it', () => {
+  expect(parseSummaryJson('```json\n{"headline":"oi"}\n```')).toEqual({ headline: 'oi' })
+  expect(parseSummaryJson('Claro! {"headline":"oi"} Espero ter ajudado.')).toEqual({
+    headline: 'oi',
+  })
+})
+
+test('an answer with no JSON at all fails — it does not become an empty summary', () => {
+  expect(() => parseSummaryJson('não consegui resumir')).toThrow('did not return valid JSON')
 })

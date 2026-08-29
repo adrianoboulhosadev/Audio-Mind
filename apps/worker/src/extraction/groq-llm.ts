@@ -19,10 +19,10 @@ export const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
  * one the key actually accepts wins and is remembered for the next job.
  */
 export const CHAT_MODEL_FALLBACKS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3.8-27b',
+  'llama-3.3-70b-versatile',
 ]
 
 /**

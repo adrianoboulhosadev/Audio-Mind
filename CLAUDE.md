@@ -209,8 +209,10 @@ pending -> transcribing -> summarizing -> ready
   - `ffmpeg` está no `Dockerfile` do worker; `FFMPEG_PATH` sobrescreve o binário.
 - **A MESMA chave serve pros dois passos**: `whisper-large-v3` (`audio.transcriptions`, com
   `response_format: 'verbose_json'` — é o que devolve o idioma) e o modelo de chat
-  (`llama-3.3-70b-versatile`, com `response_format: json_object` e `temperature` baixa). Modelos em
-  variável de ambiente (`GROQ_MODEL`, `GROQ_TRANSCRIPTION_MODEL`).
+  (`openai/gpt-oss-120b`, com `response_format: json_object` e `temperature` baixa). Modelos em
+  variável de ambiente (`GROQ_MODEL`, `GROQ_TRANSCRIPTION_MODEL`). O default já foi
+  `llama-3.3-70b-versatile` e **a Groq aposentou a família llama inteira** — foi o que motivou o
+  fallback abaixo.
 - **O modelo de chat é PREFERÊNCIA, não trava**: a Groq aposenta modelo e libera modelo por conta,
   então `404 The model ... does not exist or you do not have access to it` transforma **todo** áudio
   em `failed`, com a causa só no log do worker. O `GroqSummaryGenerator` tenta o modelo configurado
@@ -218,6 +220,10 @@ pending -> transcribing -> summarizing -> ready
   `CHAT_MODEL_FALLBACKS` — e **lembra qual funcionou** (o próximo job já começa por ele). Qualquer
   outra falha é falha DAQUELA chamada e sobe como está: trocar de modelo ali só gastaria cota com o
   mesmo erro. O resumo grava o modelo que **respondeu**, não o que estava configurado.
+- **A leitura do JSON é tolerante** (`parseSummaryJson`): com `json_object` o `JSON.parse` direto
+  bastaria, mas o fallback existe justo pra rodar num modelo que ninguém aqui testou, e modelo
+  gosta de cercar o JSON com ```` ```json ```` ou uma frase. Pegar o objeto mais externo não é
+  inventar conteúdo — o que o modelo não escreveu continua faltando, e o VO recusa igual.
 - **Retry só no que é transitório**: 429, 5xx e falha de conexão. 4xx (chave inválida, request
   ruim) não — retentar só atrasa a falha que o usuário precisa ver. Backoff exponencial 5s → 40s.
 - **O mapper é puro e NUNCA inventa conteúdo** (`summary-mapper.ts`): aceita as duas formas que um

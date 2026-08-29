@@ -75,16 +75,9 @@ export class GroqSummaryGenerator implements SummaryGenerator {
   async generate(input: SummaryGeneratorInput): Promise<GeneratedSummary> {
     const content = await this.complete(buildPrompt(input, this.config.characterLimit))
 
-    let record: LlmSummaryRecord
-    try {
-      record = JSON.parse(content) as LlmSummaryRecord
-    } catch {
-      throw new Error('The model did not return valid JSON.')
-    }
-
     // The model that ANSWERED, not the one that was configured: the summary row
     // records what actually wrote it.
-    return toGeneratedSummary(record, this.model)
+    return toGeneratedSummary(parseSummaryJson(content), this.model)
   }
 
   /**
@@ -130,5 +123,28 @@ export class GroqSummaryGenerator implements SummaryGenerator {
     const answer = response.choices[0]?.message?.content
     if (!answer) throw new Error('Groq returned an empty response.')
     return answer
+  }
+}
+
+/**
+ * Reads the JSON out of the answer.
+ *
+ * `response_format: json_object` is supposed to make this a plain `JSON.parse`,
+ * and on the model we ask first it is. But the fallback list exists precisely so
+ * the pipeline keeps running on a model nobody here has tried, and the two
+ * things a model does to JSON are fencing it in ```json and saying a sentence
+ * around it. Taking the outermost object is not inventing content — what the
+ * model did not write is still missing afterwards, and the value objects still
+ * refuse a summary that came back empty.
+ */
+export function parseSummaryJson(content: string): LlmSummaryRecord {
+  const unfenced = content.replace(/```(?:json)?/gi, '')
+  const start = unfenced.indexOf('{')
+  const end = unfenced.lastIndexOf('}')
+
+  try {
+    return JSON.parse(start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced)
+  } catch {
+    throw new Error('The model did not return valid JSON.')
   }
 }
