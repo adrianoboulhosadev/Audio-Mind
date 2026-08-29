@@ -42,6 +42,9 @@ export const Errors = {
   // The model returned nothing usable (silence, an unreadable file).
   EMPTY_TRANSCRIPT: 'EMPTY_TRANSCRIPT',
   TRANSCRIPT_TOO_LONG: 'TRANSCRIPT_TOO_LONG',
+  // One segment (a stretch of speech with its timestamps) came back unusable.
+  // Never fatal on its own: the entity drops it and keeps the transcript.
+  INVALID_TRANSCRIPT_SEGMENT: 'INVALID_TRANSCRIPT_SEGMENT',
 
   // summary — what the LLM wrote about the transcript (+ its PDF)
   SUMMARY_NOT_FOUND: 'SUMMARY_NOT_FOUND',
