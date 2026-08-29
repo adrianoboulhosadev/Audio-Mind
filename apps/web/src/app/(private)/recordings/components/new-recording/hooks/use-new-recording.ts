@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import type { RecordingSource } from '@recording/adapters'
+import { RecordingTitle, type RecordingSource } from '@recording/adapters'
 import type { RecordedAudio } from '@/components/audio-recorder/hooks/use-audio-recorder'
 import { formatBytes } from '@/lib/format'
 import { useUploadAllowance } from './use-upload-allowance'
@@ -73,7 +73,10 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
   const submit = useCallback(async () => {
     if (!audio) return
     await upload({
-      title: title.trim() || 'Áudio sem título',
+      // The placeholder comes from the value object, not from here: it is what
+      // the domain reads to know the name is still up for grabs — and what the
+      // pipeline replaces with the summary's headline.
+      title: title.trim() || RecordingTitle.PLACEHOLDER,
       source: audio.source,
       blob: audio.blob,
       durationSeconds: audio.durationSeconds,
