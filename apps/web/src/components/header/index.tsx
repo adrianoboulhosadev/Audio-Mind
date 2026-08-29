@@ -9,7 +9,12 @@ export function Header() {
   const { title, user, logout } = useHeader()
 
   return (
-    <header className="flex min-h-16 flex-wrap items-center gap-3 border-b border-line bg-panel/80 px-4 py-3 backdrop-blur sm:px-6">
+    /* `relative z-50` não é decoração: o `backdrop-blur` faz do header um
+       stacking context próprio, e sem z-index ele fica no mesmo nível do
+       conteúdo que vem DEPOIS dele no DOM — então o painel do sino, por mais
+       z-50 que tenha lá dentro, era pintado por baixo dos cards e da barra
+       inferior. Levantar o header inteiro é o que tira o painel de baixo. */
+    <header className="relative z-50 flex min-h-16 flex-wrap items-center gap-3 border-b border-line bg-panel/80 px-4 py-3 backdrop-blur sm:px-6">
       <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{title}</h1>
 
       {/* Roomier than the rest of the header on purpose: these three sit next to
