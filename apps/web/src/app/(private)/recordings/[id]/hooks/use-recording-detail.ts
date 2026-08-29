@@ -24,6 +24,10 @@ export function useRecordingDetail(recordingId: string) {
   const queryClient = useQueryClient()
   const router = useRouter()
   const [title, setTitle] = useState('')
+  // Reprocessing a recording that is READY throws away a transcript and a
+  // summary that exist and work, so it goes through a confirmation — unlike
+  // retrying one that failed, where there is nothing to lose.
+  const [confirmingReprocess, setConfirmingReprocess] = useState(false)
 
   const { data: recording, isLoading } = useQuery({
     queryKey: [...RECORDINGS_KEY, recordingId],
@@ -78,7 +82,8 @@ export function useRecordingDetail(recordingId: string) {
   const retry = useMutation({
     mutationFn: () => api.post(`/recording/${recordingId}/retry`),
     onSuccess: () => {
-      toast.success('Mandei processar de novo.')
+      toast.success('Mandei processar de novo. Aviso quando terminar.')
+      setConfirmingReprocess(false)
       invalidate()
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -106,6 +111,9 @@ export function useRecordingDetail(recordingId: string) {
     renaming: rename.isPending,
     retry: () => retry.mutate(),
     retrying: retry.isPending,
+    confirmingReprocess,
+    askToReprocess: () => setConfirmingReprocess(true),
+    cancelReprocess: () => setConfirmingReprocess(false),
     remove: () => remove.mutate(),
   }
 }

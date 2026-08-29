@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field } from '@/components/field'
 import { IconButton } from '@/components/icon-button'
 import { Loading } from '@/components/loading'
@@ -29,6 +30,9 @@ export default function RecordingDetailPage() {
     renaming,
     retry,
     retrying,
+    confirmingReprocess,
+    askToReprocess,
+    cancelReprocess,
   } = useRecordingDetail(id)
 
   if (isLoading) return <Loading />
@@ -90,6 +94,20 @@ export default function RecordingDetailPage() {
             Salvar
           </Button>
         </div>
+
+        {/* Only for a recording that FINISHED: failed has its own button below,
+            and one still in the pipeline has a job on it already. */}
+        {recording.status === 'ready' ? (
+          <button
+            type="button"
+            onClick={askToReprocess}
+            disabled={retrying}
+            className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted transition hover:text-ink disabled:opacity-40"
+          >
+            <RefreshCw size={13} aria-hidden />
+            {retrying ? 'Reenviando…' : 'Transcrever e resumir de novo'}
+          </button>
+        ) : null}
       </section>
 
       {/* Three states, three different things to say — a spinner for all of them
@@ -121,6 +139,22 @@ export default function RecordingDetailPage() {
       {transcription ? (
         <TranscriptPanel transcription={transcription} player={player} />
       ) : null}
+
+      <ConfirmDialog
+        open={confirmingReprocess}
+        title="Processar esse áudio de novo?"
+        description={
+          <>
+            A transcrição e o resumo atuais são <strong className="text-ink">substituídos</strong>{' '}
+            pelo que sair desta vez, e os dois modelos rodam outra vez. O áudio em si não muda. Serve
+            pra uma gravação antiga ganhar o que o pipeline faz hoje — como os trechos com o momento
+            em que foram ditos.
+          </>
+        }
+        confirmLabel={retrying ? 'Enviando…' : 'Processar de novo'}
+        onConfirm={retry}
+        onCancel={cancelReprocess}
+      />
     </div>
   )
 }

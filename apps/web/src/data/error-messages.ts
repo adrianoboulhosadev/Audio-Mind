@@ -28,7 +28,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_AUDIO_DURATION: 'Não consegui ler a duração desse áudio.',
   AUDIO_FILE_REQUIRED: 'Envie um arquivo de áudio.',
   INVALID_RECORDING_STATUS: 'Essa gravação está em outro estágio do processamento.',
-  RECORDING_NOT_FAILED: 'Só dá pra reprocessar uma gravação que falhou.',
+  RECORDING_IN_PIPELINE: 'Essa gravação já está na fila. Espere ela terminar pra processar de novo.',
 
   // transcription / summary
   TRANSCRIPTION_NOT_FOUND: 'A transcrição ainda não está pronta.',
