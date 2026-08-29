@@ -2,10 +2,14 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { AuthModule } from '../auth/auth.module'
 import { AuthMiddleware } from '../auth/auth.middleware'
 import { DbModule } from '../db/db.module'
+import { NotificationStoreModule } from '../notification/notification-store.module'
+import { RecordingModule } from '../recording/recording.module'
 import { UserController } from './user.controller'
 
 @Module({
-  imports: [DbModule, AuthModule],
+  // Deleting the account erases the whole library and the whole inbox with it,
+  // so this module needs the recording eraser and the notification store.
+  imports: [DbModule, AuthModule, RecordingModule, NotificationStoreModule],
   controllers: [UserController],
 })
 export class UserModule implements NestModule {

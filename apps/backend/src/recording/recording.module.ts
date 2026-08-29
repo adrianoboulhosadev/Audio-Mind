@@ -8,19 +8,23 @@ import { PrismaTranscriptionRepository } from '../transcription/prisma-transcrip
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
 import { RecordingController } from './recording.controller'
+import { RecordingEraser } from './recording-eraser'
 
 @Module({
   imports: [DbModule, AuthModule, NotificationStoreModule],
   controllers: [RecordingController],
   providers: [
     PrismaRecordingRepository,
-    // The delete cascade is cross-context and lives in the controller, so it
-    // needs both derived repositories here.
+    // The delete cascade is cross-context and lives in the eraser, so it needs
+    // both derived repositories here.
     PrismaTranscriptionRepository,
     PrismaSummaryRepository,
+    RecordingEraser,
     BullMqRecordingProcessingQueue,
   ],
-  exports: [PrismaRecordingRepository],
+  // The eraser is exported because erasing an ACCOUNT means erasing the whole
+  // library first (UserController), with the same cascade in the same order.
+  exports: [PrismaRecordingRepository, RecordingEraser],
 })
 export class RecordingModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

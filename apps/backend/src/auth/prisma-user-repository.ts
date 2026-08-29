@@ -78,6 +78,10 @@ export class PrismaUserRepository implements UserRepository, UserQueryRepository
     await this.prisma.user.update({ where: { id }, data: { active: false } })
   }
 
+  async delete(id: string): Promise<void> {
+    await this.prisma.user.delete({ where: { id } })
+  }
+
   // Read side (CQRS): plain query projection, never the password.
   async findByIdQuery(id: string): Promise<UserDTO | null> {
     const row = await this.prisma.user.findUnique({ where: { id }, select: USER_DTO_SELECT })

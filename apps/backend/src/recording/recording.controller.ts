@@ -12,20 +12,17 @@ import {
 } from '@nestjs/common'
 import { Response } from 'express'
 import { createReadStream } from 'fs'
-import { stat, unlink } from 'fs/promises'
+import { stat } from 'fs/promises'
 import { RecordingDTO, RecordingFacade, RenameRecordingInput, UploadRecordingInput } from '@recording/adapters'
-import { SummaryFacade } from '@summary/adapters'
-import { TranscriptionFacade } from '@transcription/adapters'
 import { UserDTO } from '@auth/adapters'
 import { allowanceFor } from '../auth/upload-allowance'
 import { authenticatedUser } from '../shared/authenticated-user.decorator'
 import { requireFields } from '../shared/require-fields'
 import { DomainEventListener } from '../notification/domain-event-listener'
-import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
-import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
 import { normalizeMimeType, resolveUploadPath } from '../upload/uploads.config'
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
+import { RecordingEraser } from './recording-eraser'
 
 /**
  * The user's library. Every route takes the owner id from `@authenticatedUser`
@@ -37,10 +34,9 @@ import { PrismaRecordingRepository } from './prisma-recording-repository'
 export class RecordingController {
   constructor(
     private readonly recordingRepository: PrismaRecordingRepository,
-    private readonly transcriptionRepository: PrismaTranscriptionRepository,
-    private readonly summaryRepository: PrismaSummaryRepository,
     private readonly queue: BullMqRecordingProcessingQueue,
     private readonly events: DomainEventListener,
+    private readonly eraser: RecordingEraser,
   ) {}
 
   private facade(): RecordingFacade {
@@ -98,29 +94,13 @@ export class RecordingController {
   }
 
   /**
-   * Deleting is CROSS-CONTEXT, so the orchestration lives here (the app layer),
-   * exactly like every other cross-context flow: the recording owns none of the
-   * derived rows, and none of those contexts knows who owns a recording.
-   *
-   * Order matters — the recording is read FIRST (which is also the ownership
-   * check) because its row is what says where the files are.
+   * Deleting is CROSS-CONTEXT (transcript, summary, the files on disk), and the
+   * ordered cascade lives in the RecordingEraser — the same one the account
+   * erasure runs over the whole library.
    */
   @Delete(':id')
   async remove(@authenticatedUser() user: UserDTO, @Param('id') id: string) {
-    const recording = await this.facade().getRecording(id, user.id)
-    const summary = await new SummaryFacade(undefined, this.summaryRepository)
-      .getSummary(id)
-      .catch(() => null)
-
-    await new TranscriptionFacade(this.transcriptionRepository).deleteTranscription(id)
-    await new SummaryFacade(this.summaryRepository).deleteSummary(id)
-    await this.facade().deleteRecording(id, user.id)
-
-    // The files go last and best-effort: the rows are gone either way, and a
-    // leftover file is a janitorial problem, not a broken delete the user has
-    // to see as an error.
-    await this.removeFile(recording.audioUrl)
-    if (summary?.pdfUrl) await this.removeFile(summary.pdfUrl)
+    await this.eraser.erase(id, user.id)
   }
 
   /**
@@ -145,13 +125,5 @@ export class RecordingController {
     response.setHeader('Content-Type', recording.mimeType)
     response.setHeader('Content-Length', size)
     createReadStream(path).pipe(response)
-  }
-
-  private async removeFile(url: string): Promise<void> {
-    try {
-      await unlink(resolveUploadPath(url))
-    } catch {
-      // Already gone (or never written): nothing to clean up.
-    }
   }
 }
