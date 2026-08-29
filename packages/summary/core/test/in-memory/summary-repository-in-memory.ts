@@ -48,6 +48,24 @@ export default class SummaryRepositoryInMemory implements SummaryRepository, Sum
     if (index >= 0) this.rows[index] = this.serialize(summary)
   }
 
+  // Same fields the SQL looks at: headline, overview and the bullets.
+  async searchRecordingIdsQuery(
+    term: string,
+    recordingIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    const lowered = term.toLowerCase()
+    const mentions = (row: SummaryRow) =>
+      [row.headline, row.overview, ...row.topics, ...row.actionItems].some((text) =>
+        text.toLowerCase().includes(lowered),
+      )
+
+    return this.rows
+      .filter((row) => recordingIds.includes(row.recordingId) && mentions(row))
+      .slice(0, limit)
+      .map((row) => row.recordingId)
+  }
+
   async deleteByRecording(recordingId: string): Promise<void> {
     this.rows = this.rows.filter((current) => current.recordingId !== recordingId)
   }
