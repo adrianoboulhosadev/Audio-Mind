@@ -1,5 +1,12 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common'
-import { Response } from 'express'
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common'
+import { Request, Response } from 'express'
 import {
   DomainError,
   ValidationError,
@@ -27,8 +34,11 @@ function statusOf(error: DomainError): number {
 
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(DomainExceptionFilter.name)
+
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse<Response>()
+    const request = host.switchToHttp().getRequest<Request>()
 
     // Nest's native HttpException: respect its status/body.
     if (exception instanceof HttpException) {
@@ -47,7 +57,16 @@ export class DomainExceptionFilter implements ExceptionFilter {
       })
     }
 
-    // Unknown: 500 without leaking internal details.
+    // Unknown: 500 without leaking internal details TO THE CLIENT — but logged
+    // in full here, because this branch is the only place the cause exists.
+    // Answering `UNKNOWN_ERROR` and writing nothing is how a missing migration
+    // turns into "erro interno" with no way to find out why: the response is
+    // deliberately vague, so the log has to be the opposite.
+    this.logger.error(
+      `Unhandled failure on ${request?.method} ${request?.originalUrl}`,
+      exception instanceof Error ? exception.stack : String(exception),
+    )
+
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       errors: [{ code: Errors.UNKNOWN_ERROR }],
