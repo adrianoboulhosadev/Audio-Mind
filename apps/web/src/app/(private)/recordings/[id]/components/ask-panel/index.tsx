@@ -58,7 +58,6 @@ export function AskPanel({ recordingId }: { recordingId: string }) {
               <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink2">
                 {exchange.answer}
               </p>
-              <p className="mt-1 text-[11px] text-muted">{exchange.model}</p>
             </li>
           ))}
         </ul>

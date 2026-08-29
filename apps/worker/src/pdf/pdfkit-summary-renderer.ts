@@ -64,7 +64,7 @@ export class PdfKitSummaryRenderer implements PdfRenderer {
         .font('Helvetica')
         .fontSize(9)
         .fillColor('#9ca3af')
-        .text('Gerado automaticamente pelo Audio-Mind a partir da transcrição do áudio.')
+        .text('Gerado automaticamente pelo Audio Mind a partir da transcrição do áudio.')
 
       document.end()
     })

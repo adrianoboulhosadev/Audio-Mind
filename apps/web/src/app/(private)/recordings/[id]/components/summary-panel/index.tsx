@@ -65,7 +65,6 @@ export function SummaryPanel({ summary, recordingId }: { summary: SummaryDTO; re
         </div>
       ) : null}
 
-      <p className="mt-5 text-[11px] text-muted">Resumo gerado por {summary.model}.</p>
     </section>
   )
 }

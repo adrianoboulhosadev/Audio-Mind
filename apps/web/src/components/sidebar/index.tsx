@@ -19,7 +19,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center border-b border-line px-5">
         <Link href="/recordings" className="flex items-center gap-2 text-ink">
           <AudioLines size={20} className="text-accent" aria-hidden />
-          <span className="text-sm font-semibold tracking-wide">Audio-Mind</span>
+          <span className="text-sm font-semibold tracking-wide">Audio Mind</span>
         </Link>
       </div>
 

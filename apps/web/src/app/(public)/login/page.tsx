@@ -11,7 +11,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold text-ink">Audio-Mind</h1>
+      <h1 className="text-2xl font-semibold text-ink">Audio Mind</h1>
       <p className="mb-8 mt-1 text-sm text-muted">
         Entre para ver seus áudios, transcrições e resumos.
       </p>

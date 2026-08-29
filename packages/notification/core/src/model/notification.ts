@@ -105,7 +105,7 @@ export class Notification extends Entity<Notification, NotificationProps> {
         }
       case 'welcome':
         return {
-          title: 'Bem-vindo ao Audio-Mind',
+          title: 'Bem-vindo ao Audio Mind',
           body: 'Grave ou envie um áudio e receba a transcrição, o resumo e o PDF.',
           link: '/recordings',
         }

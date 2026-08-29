@@ -5,4 +5,4 @@ export const SCREEN_TITLES: Record<string, string> = {
   '/profile': 'Perfil',
 }
 
-export const DEFAULT_SCREEN_TITLE = 'Audio-Mind'
+export const DEFAULT_SCREEN_TITLE = 'Audio Mind'

@@ -9,7 +9,6 @@ import { api, errorMessage } from '@/lib/api'
 interface Exchange {
   question: string
   answer: string
-  model: string
 }
 
 /**
@@ -32,8 +31,11 @@ export function useAskPanel(recordingId: string) {
     },
     // Newest first: the answer appears right under the box the question was
     // typed in, instead of at the bottom of a growing list.
+    // The model that answered comes in the response and is deliberately NOT
+    // shown: which model wrote it is our plumbing, not something the reader of
+    // an answer has to carry.
     onSuccess: (data, asked) => {
-      setThread((current) => [{ question: asked, ...data }, ...current])
+      setThread((current) => [{ question: asked, answer: data.answer }, ...current])
       setQuestion('')
     },
     onError: (error) => toast.error(errorMessage(error)),
