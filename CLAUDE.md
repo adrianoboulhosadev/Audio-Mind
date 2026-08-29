@@ -177,12 +177,19 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
 Estados do `Recording`, e cada transição é um **método** que valida a própria precondição:
 
 ```
-pending -> transcribing -> summarizing -> ready
+pending -> transcribing -> summarizing -> ready --(reprocessar, só o dono)--> pending
    \___________|_______________|______-> failed -> (retry) -> pending
 ```
 
-- `ready` é **terminal**: um áudio que já tem resumo nunca é arrastado de volta pro pipeline, e é
-  isso que faz um job reentregue ser inofensivo.
+- `ready` é terminal **pro worker**: `processRecording` sai na hora quando a gravação já está
+  pronta, e é isso que faz um job reentregue ser inofensivo. Quem tira uma gravação de `ready` é
+  **só o dono**, pelo botão de reprocessar — que existe pra uma gravação antiga ganhar o que o
+  pipeline faz hoje (os trechos com timestamp, um modelo melhor). Reprocessar **substitui**
+  transcrição e resumo (os dois são upsert por `recordingId`) e roda os dois modelos de novo, então
+  a tela confirma antes.
+- **`retry()` recusa o que já tem job em cima** (`pending`, `transcribing`, `summarizing`):
+  `RECORDING_IN_PIPELINE`. Duas execuções sobre o mesmo áudio seriam dois workers escrevendo as
+  mesmas linhas.
 - `processRecording` (worker) é **RESUMÍVEL**: lê o status antes de agir. Quem morreu depois de
   gravar a transcrição está em `summarizing` e **não paga a transcrição de novo** — rodar o modelo
   outra vez custaria minutos e dinheiro pelo mesmo texto.
