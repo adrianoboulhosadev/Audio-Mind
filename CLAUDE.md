@@ -171,6 +171,14 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
   doer, é uma coluna `tsvector` — e o único lugar que muda é o método do repositório.
 - **Termo com menos de 2 caracteres devolve vazio**, nunca a biblioteca inteira: uma "busca" que
   casa com tudo não é busca.
+- **O resultado diz ONDE casou**: a transcrição devolve o TRECHO e o segundo em que foi dito, e o
+  card leva pra `/recordings/:id?t=<segundo>`. Achar o áudio é metade do trabalho; a outra metade é
+  não fazer a pessoa caçar dentro de uma hora de gravação.
+- **`findTranscriptMatch` prefere o SEGMENTO** a uma janela de caracteres, e não é só pelo
+  timestamp: o segmento é uma frase que alguém falou, a fatia do texto começa e termina no meio de
+  uma palavra. A janela é o fallback pra transcrição sem segmentos. Quem casou só pelo título ou
+  pelo resumo **não ganha trecho** — apontar pra um lugar qualquer da transcrição seria apontar pro
+  lugar errado.
 
 ## O pipeline (assíncrono)
 
@@ -303,7 +311,11 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
   formato aceito pelo modelo (mp3, m4a/mp4, wav, ogg, flac, webm — **com os aliases**, porque
   navegador chama o mesmo container de nomes diferentes) e os **tetos de tamanho/duração**. Duração
   **zero é o navegador falhando na metadata**, não áudio curto — por isso é recusada. `source` (`record`/`upload`) é só o que o usuário fez; o pipeline não ramifica.
-  Renomear é a **única** coisa editável depois do upload. `GetRecordingForProcessingQuery` é a
+  Renomear é a **única** coisa editável depois do upload — com uma exceção que não é edição do
+  usuário: `RecordingTitle.PLACEHOLDER` ("Áudio sem título") é a marca de que **ninguém nomeou** a
+  gravação, e o fim do pipeline oferece a headline do resumo pra ela (`adoptSuggestedTitle`). Título
+  que a pessoa digitou nenhum modelo pisa em cima. O placeholder mora no VO, não no front, porque é
+  regra e não label. `GetRecordingForProcessingQuery` é a
   leitura do SISTEMA (sem dono, porque um job de fila não tem chamador autenticado) e é um use case
   **separado** de propósito: um `ownerId?` opcional está a um argumento esquecido de virar leitura
   sem guarda numa rota HTTP.
@@ -550,6 +562,14 @@ validação de UI simples).
   axios com `withCredentials`; interceptor de 401 chama `/auth/refresh` (**dedup do refresh em
   voo** — sem isso cinco requests simultâneos rotacionam o token cinco vezes e a detecção de reuso
   derruba a sessão inteira) e repete; silent refresh no boot.
+- **A tela lembra onde você parou** (posição por gravação no `localStorage`, por navegador — é
+  conveniência, não fato sobre a gravação) e o `?t=` da busca ganha dela. Chegar ao fim esquece a
+  posição. A transcrição **acompanha** o áudio e para de seguir por 6s quando a pessoa rola com a
+  mão — sem isso, reler uma linha vira briga com o player, e o player sempre ganha.
+- **Gravar segura a tela acesa** (`navigator.wakeLock`): no celular a tela apagando suspende a
+  página, e página suspensa não alimenta o `MediaRecorder` — que é exatamente o caso de deixar o
+  telefone na mesa numa reunião de 40 minutos. Best-effort (nem todo navegador tem) e retomado a
+  cada `visibilitychange`, porque o lock morre quando a aba esconde e o navegador não devolve.
 - **O player é NOSSO** (`audio-player/`), com o `<audio>` sem `controls`. O nativo é pintado pelo
   Chromium como uma barra branca — a única superfície do app que ignorava a paleta, no topo de toda
   tela de detalhe. Ter os controles também é o que dá pular 15s e velocidade de reprodução, que é o
@@ -596,6 +616,16 @@ validação de UI simples).
     volume `root` derruba o app no boot com `EACCES`).
   - **O schema é aplicado no BOOT do backend** (`prisma migrate deploy && npm start`). Se falhar, o
     container **não sobe** — melhor que servir com o schema errado. Só o backend migra.
+- **Healthcheck pros dois deployables**: o backend tem `GET /health`, que **toca o banco** (up não é
+  a mesma coisa que funcionando — um backend sem Postgres responde 500 pra tudo enquanto o docker o
+  reporta rodando); o worker não tem porta, então mantém um **heartbeat** em `/tmp` e o healthcheck
+  lê a idade do arquivo (prova que o processo vive E que o event loop gira). Os dois usam um
+  `healthcheck.js` em arquivo, não um one-liner no compose: aspas de shell dentro de YAML é
+  armadilha que ninguém devia depurar de madrugada.
+- **`UploadsJanitor`** varre a raiz de uploads e apaga arquivo que nenhuma linha aponta — eles
+  existem porque o upload são DOIS requests de propósito, e quem fecha a aba no meio deixa um arquivo
+  órfão. Conservador nessa ordem: só o que tem mais de **24h**, só o que não está no banco, e **toda
+  remoção logada**. Errar aqui é apagar áudio de alguém, então ele prefere deixar lixo pra trás.
 - **Reverse proxy: `deploy/nginx.conf`** — `client_max_body_size` (o default de 1 MB dá 413 em
   qualquer áudio), bloco próprio pro SSE com `proxy_buffering off` (com buffering o sininho parece
   travado) e `X-Accel-Buffering: no` no próprio handler como cinto e suspensório.
