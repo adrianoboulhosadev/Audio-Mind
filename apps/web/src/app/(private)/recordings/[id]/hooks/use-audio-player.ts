@@ -9,27 +9,38 @@ import { api } from '@/lib/api'
 export const SKIP_SECONDS = 15
 
 /**
- * Fetches the audio as a BLOB and drives the playback.
+ * A WebM recorded by the browser carries neither a duration in its header nor a
+ * seek index, so no player can jump around it by asking for byte ranges — it
+ * needs the whole file in hand. Everything else (mp3, m4a, wav, ogg, flac) is
+ * seekable, which is what makes streaming worth it: playback starts at once and
+ * clicking a line of the transcript fetches only the bytes around that moment.
+ */
+function needsFullDownload(mimeType: string): boolean {
+  return mimeType.includes('webm')
+}
+
+/**
+ * Loads the audio and drives the playback.
  *
  * It sits in the ROUTE's hooks folder, not inside the player component, because
  * two components on this screen drive the same sound: the player, and the
  * transcript, where clicking a line jumps to the second it was said. A second
  * copy of this state would be a second `<audio>` element.
  *
- * A plain `<audio src="…">` cannot be used: the file is served by an
- * authenticated route (the uploads folder is deliberately not public — see the
- * backend), and the browser sends no Authorization header for a media element.
- * So axios fetches it with the token like any other request and the player gets
- * a local URL.
+ * The uploads folder is deliberately not public, so the bytes always come from
+ * an authenticated route — but HOW depends on the container:
  *
- * The trade-off is that the whole file downloads before playback instead of
- * streaming by range — the price of the audio not being world-readable.
+ * - seekable formats get a short-lived capability link (see the backend's
+ *   audio-access-token) that the `<audio>` element loads by itself, with Range;
+ * - a browser-recorded WebM is fetched whole by axios, with the Authorization
+ *   header, and played from an object URL. Ranges would buy nothing there and
+ *   would cost the scrubber, which is the worse trade.
  *
  * The `<audio>` element stays the source of truth for time and playing state;
  * this hook only mirrors what it reports. Keeping a parallel copy of "where are
  * we" is how a scrubber ends up disagreeing with the sound coming out.
  */
-export function useAudioPlayer(recordingId: string) {
+export function useAudioPlayer(recordingId: string, mimeType?: string) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [source, setSource] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -39,17 +50,28 @@ export function useAudioPlayer(recordingId: string) {
   const [rate, setRate] = useState(1)
 
   useEffect(() => {
+    // The container decides how the bytes are loaded, so there is nothing to do
+    // until the recording itself has been read.
+    if (!mimeType) return
+
     let objectUrl: string | null = null
     let active = true
 
     ;(async () => {
       try {
-        const { data } = await api.get<Blob>(`/recording/${recordingId}/audio`, {
-          responseType: 'blob',
-        })
+        if (needsFullDownload(mimeType)) {
+          const { data } = await api.get<Blob>(`/recording/${recordingId}/audio`, {
+            responseType: 'blob',
+          })
+          if (!active) return
+          objectUrl = URL.createObjectURL(data)
+          setSource(objectUrl)
+          return
+        }
+
+        const { data } = await api.get<{ url: string }>(`/recording/${recordingId}/audio/link`)
         if (!active) return
-        objectUrl = URL.createObjectURL(data)
-        setSource(objectUrl)
+        setSource(`${api.defaults.baseURL ?? ''}${data.url}`)
       } catch {
         if (active) setFailed(true)
       }
@@ -58,10 +80,11 @@ export function useAudioPlayer(recordingId: string) {
     return () => {
       active = false
       // Revoking is what actually frees the downloaded bytes — without it every
-      // visit to this screen leaks another copy of the file.
+      // visit to this screen leaks another copy of the file. (Only the download
+      // path creates one; the streaming path has nothing to free.)
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [recordingId])
+  }, [recordingId, mimeType])
 
   const toggle = useCallback(() => {
     const audio = audioRef.current

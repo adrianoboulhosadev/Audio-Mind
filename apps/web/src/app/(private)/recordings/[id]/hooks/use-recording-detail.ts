@@ -24,9 +24,6 @@ export function useRecordingDetail(recordingId: string) {
   const queryClient = useQueryClient()
   const router = useRouter()
   const [title, setTitle] = useState('')
-  // One player for the whole screen: the transcript drives the same sound the
-  // controls do.
-  const player = useAudioPlayer(recordingId)
 
   const { data: recording, isLoading } = useQuery({
     queryKey: [...RECORDINGS_KEY, recordingId],
@@ -37,6 +34,11 @@ export function useRecordingDetail(recordingId: string) {
   })
 
   const ready = recording?.status === 'ready'
+
+  // One player for the whole screen: the transcript drives the same sound the
+  // controls do. It only starts loading once the recording is known — the
+  // container is what decides whether the audio streams or is downloaded whole.
+  const player = useAudioPlayer(recordingId, recording?.mimeType)
 
   const { data: summary } = useQuery({
     queryKey: ['summary', recordingId],
