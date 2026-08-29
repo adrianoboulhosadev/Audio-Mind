@@ -1,7 +1,44 @@
 import { Agent as HttpsAgent } from 'node:https'
-import OpenAI, { APIConnectionError, InternalServerError, RateLimitError } from 'openai'
+import OpenAI, {
+  APIConnectionError,
+  InternalServerError,
+  NotFoundError,
+  RateLimitError,
+} from 'openai'
 
 export const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
+
+/**
+ * Chat models tried, in order, when the configured one is refused for THIS key.
+ *
+ * Groq retires models and gates others per account, so a name that worked last
+ * month can start answering `404 The model ... does not exist or you do not have
+ * access to it` — and a summary step that dies there turns every audio into a
+ * FAILED recording until someone reads the worker log and edits an env file.
+ * The list is ordered by what we would rather write the summary with; the first
+ * one the key actually accepts wins and is remembered for the next job.
+ */
+export const CHAT_MODEL_FALLBACKS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-20b',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+]
+
+/**
+ * A Groq call that ran out of attempts. Carries the ORIGINAL error next to the
+ * sentence we log: the caller needs the status code to tell "this key cannot use
+ * this model" (worth trying another one) from "this call failed" (not).
+ */
+export class GroqCallError extends Error {
+  constructor(
+    message: string,
+    readonly original: unknown,
+  ) {
+    super(message)
+    this.name = 'GroqCallError'
+  }
+}
 
 export interface GroqConfig {
   apiKey: string
@@ -53,7 +90,20 @@ export async function callWithRetry<T>(operation: () => Promise<T>, what: string
     }
   }
 
-  throw new Error(`Failed to call Groq (${what}): ${errorMessage(lastError)}`)
+  throw new GroqCallError(`Failed to call Groq (${what}): ${errorMessage(lastError)}`, lastError)
+}
+
+/**
+ * Whether the failure means "not this model" rather than "not this call": the
+ * model was retired, or this API key was never entitled to it. Both are 404s
+ * from Groq, and neither is fixed by trying again with the same name.
+ */
+export function isModelUnavailable(error: unknown): boolean {
+  const original = error instanceof GroqCallError ? error.original : error
+  if (original instanceof NotFoundError) return true
+  return /does not exist or you do not have access|model[_ ]not[_ ]found|decommissioned/i.test(
+    errorMessage(error),
+  )
 }
 
 function isRetryable(error: unknown): boolean {
@@ -71,6 +121,6 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function errorMessage(error: unknown): string {
+export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }

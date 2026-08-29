@@ -1,6 +1,13 @@
 import OpenAI from 'openai'
 import { GeneratedSummary, SummaryGenerator, SummaryGeneratorInput } from '@summary/adapters'
-import { GroqConfig, callWithRetry, createGroqClient } from './groq-llm'
+import {
+  CHAT_MODEL_FALLBACKS,
+  GroqConfig,
+  callWithRetry,
+  createGroqClient,
+  errorMessage,
+  isModelUnavailable,
+} from './groq-llm'
 import { LlmSummaryRecord, toGeneratedSummary } from './summary-mapper'
 
 const INSTRUCTIONS = `### MISSÃO: RESUMIR A TRANSCRIÇÃO DE UM ÁUDIO EM JSON
@@ -44,26 +51,29 @@ ${input.transcript.slice(0, characterLimit)}
  * `response_format: json_object` plus a low temperature is what keeps the answer
  * parseable: a summary is not a place for creative formatting, and re-prompting
  * a model that wrapped its JSON in prose is a cost nobody needs.
+ *
+ * The model NAME is not a constant of the pipeline, it is a preference: Groq
+ * retires models and gates others per account, and a key that is not entitled to
+ * the configured one answers 404 on every single job — every audio FAILED, with
+ * the real cause only in the worker log. So the configured model is tried first
+ * and the known-good alternatives after it, and whichever the key accepts is
+ * remembered for the rest of the process.
  */
 export class GroqSummaryGenerator implements SummaryGenerator {
   private readonly client: OpenAI
+  /** Configured model first, then the fallbacks — no duplicates. */
+  private readonly candidates: string[]
+  /** The one to try first: the last that worked, or the configured one. */
+  private model: string
 
   constructor(private readonly config: GroqConfig) {
     this.client = createGroqClient(config.apiKey)
+    this.candidates = [...new Set([config.model, ...CHAT_MODEL_FALLBACKS])]
+    this.model = this.candidates[0]
   }
 
   async generate(input: SummaryGeneratorInput): Promise<GeneratedSummary> {
-    const content = await callWithRetry(async () => {
-      const response = await this.client.chat.completions.create({
-        model: this.config.model,
-        messages: [{ role: 'user', content: buildPrompt(input, this.config.characterLimit) }],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-      })
-      const answer = response.choices[0]?.message?.content
-      if (!answer) throw new Error('Groq returned an empty response.')
-      return answer
-    }, 'summary')
+    const content = await this.complete(buildPrompt(input, this.config.characterLimit))
 
     let record: LlmSummaryRecord
     try {
@@ -72,6 +82,53 @@ export class GroqSummaryGenerator implements SummaryGenerator {
       throw new Error('The model did not return valid JSON.')
     }
 
-    return toGeneratedSummary(record, this.config.model)
+    // The model that ANSWERED, not the one that was configured: the summary row
+    // records what actually wrote it.
+    return toGeneratedSummary(record, this.model)
+  }
+
+  /**
+   * Asks the first candidate the key accepts. Only a "no such model / no access"
+   * answer moves to the next one — any other failure is this call's failure and
+   * is thrown as it is, because trying a different model would just spend the
+   * quota on the same error.
+   */
+  private async complete(prompt: string): Promise<string> {
+    const start = Math.max(0, this.candidates.indexOf(this.model))
+    let lastError: unknown
+
+    for (let index = start; index < this.candidates.length; index++) {
+      const model = this.candidates[index]
+      try {
+        const content = await callWithRetry(() => this.ask(model, prompt), 'summary')
+        if (model !== this.model) {
+          console.warn(`[worker] summarizing with "${model}" from now on.`)
+          this.model = model
+        }
+        return content
+      } catch (error) {
+        if (!isModelUnavailable(error)) throw error
+        lastError = error
+        console.warn(
+          `[worker] Groq refused the model "${model}" for this API key (retired or not entitled).`,
+        )
+      }
+    }
+
+    throw new Error(
+      `No Groq chat model is available for this API key. Tried: ${this.candidates.join(', ')}. Last answer: ${errorMessage(lastError)}`,
+    )
+  }
+
+  private async ask(model: string, prompt: string): Promise<string> {
+    const response = await this.client.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
+    })
+    const answer = response.choices[0]?.message?.content
+    if (!answer) throw new Error('Groq returned an empty response.')
+    return answer
   }
 }
