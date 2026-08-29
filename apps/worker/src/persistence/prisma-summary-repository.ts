@@ -33,6 +33,33 @@ export class PrismaSummaryRepository implements SummaryRepository, SummaryQueryR
     })
   }
 
+  /**
+   * The subset of `recordingIds` whose summary mentions the term — headline,
+   * overview or one of the bullets. ILIKE and not full-text, same reasoning as
+   * the transcript search: the id list already bounds the scan to one person's
+   * library.
+   */
+  async searchRecordingIdsQuery(
+    term: string,
+    recordingIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.prisma.summary.findMany({
+      where: {
+        recordingId: { in: recordingIds },
+        OR: [
+          { headline: { contains: term, mode: 'insensitive' } },
+          { overview: { contains: term, mode: 'insensitive' } },
+          { topics: { has: term } },
+          { actionItems: { has: term } },
+        ],
+      },
+      select: { recordingId: true },
+      take: limit,
+    })
+    return rows.map((row) => row.recordingId)
+  }
+
   async deleteByRecording(recordingId: string): Promise<void> {
     await this.prisma.summary.deleteMany({ where: { recordingId } })
   }

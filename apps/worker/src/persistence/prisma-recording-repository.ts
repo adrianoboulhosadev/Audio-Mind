@@ -1,4 +1,4 @@
-import { PrismaClient } from 'database'
+import { Prisma, PrismaClient } from 'database'
 import {
   Recording,
   RecordingDTO,
@@ -89,6 +89,32 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
   async listByOwnerQuery(ownerId: string, limit: number): Promise<RecordingDTO[]> {
     const rows = await this.prisma.recording.findMany({
       where: { ownerId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+    return rows.map((row) => this.toDTO(row))
+  }
+
+  // The worker never searches — it processes one job at a time. Implemented
+  // because the READ port is one interface, and answering "nothing" is honest:
+  // there is no caller here to answer anything else to.
+  async listAllIdsByOwnerQuery(ownerId: string): Promise<string[]> {
+    const rows = await this.prisma.recording.findMany({ where: { ownerId }, select: { id: true } })
+    return rows.map((row) => row.id)
+  }
+
+  async searchByOwnerQuery(
+    ownerId: string,
+    term: string,
+    alsoIds: string[],
+    limit: number,
+  ): Promise<RecordingDTO[]> {
+    const matches: Prisma.RecordingWhereInput[] = []
+    if (term) matches.push({ title: { contains: term, mode: 'insensitive' as const } })
+    if (alsoIds.length > 0) matches.push({ id: { in: alsoIds } })
+
+    const rows = await this.prisma.recording.findMany({
+      where: { ownerId, OR: matches },
       orderBy: { createdAt: 'desc' },
       take: limit,
     })

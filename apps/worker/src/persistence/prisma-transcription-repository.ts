@@ -32,6 +32,25 @@ export class PrismaTranscriptionRepository
     return row ? new Transcription({ ...row, segments: toSegmentInputs(row.segments) }) : null
   }
 
+  /**
+   * The subset of `recordingIds` whose transcript mentions the term. ILIKE
+   * (`contains` + insensitive) rather than full-text: no column, no index, no
+   * dictionary to keep in sync — and the id list already bounds the scan to one
+   * person's library.
+   */
+  async searchRecordingIdsQuery(
+    term: string,
+    recordingIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.prisma.transcription.findMany({
+      where: { recordingId: { in: recordingIds }, text: { contains: term, mode: 'insensitive' } },
+      select: { recordingId: true },
+      take: limit,
+    })
+    return rows.map((row) => row.recordingId)
+  }
+
   async deleteByRecording(recordingId: string): Promise<void> {
     await this.prisma.transcription.deleteMany({ where: { recordingId } })
   }

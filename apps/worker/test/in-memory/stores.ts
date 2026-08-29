@@ -79,6 +79,16 @@ export class RecordingStore implements RecordingRepository, RecordingQueryReposi
   async findByIdQuery(id: string): Promise<RecordingDTO | null> {
     return this.rows.get(id) ?? null
   }
+
+  // The worker never searches; these exist because the READ port is one
+  // interface, and the pipeline tests only ever go through the two above.
+  async listAllIdsByOwnerQuery(ownerId: string): Promise<string[]> {
+    return [...this.rows.values()].filter((row) => row.ownerId === ownerId).map((row) => row.id)
+  }
+
+  async searchByOwnerQuery(ownerId: string): Promise<RecordingDTO[]> {
+    return [...this.rows.values()].filter((row) => row.ownerId === ownerId)
+  }
 }
 
 export class TranscriptionStore implements TranscriptionRepository, TranscriptionQueryRepository {
@@ -112,6 +122,14 @@ export class TranscriptionStore implements TranscriptionRepository, Transcriptio
 
   async findByRecordingQuery(recordingId: string): Promise<TranscriptionDTO | null> {
     return this.rows.get(recordingId) ?? null
+  }
+
+  // Searching is a backend feature; the port is shared, so the store answers it
+  // honestly and the pipeline tests never call it.
+  async searchRecordingIdsQuery(term: string, recordingIds: string[]): Promise<string[]> {
+    return [...this.rows.values()]
+      .filter((row) => recordingIds.includes(row.recordingId) && row.text.includes(term))
+      .map((row) => row.recordingId)
   }
 }
 
@@ -151,6 +169,12 @@ export class SummaryStore implements SummaryRepository, SummaryQueryRepository {
 
   async findByRecordingQuery(recordingId: string): Promise<SummaryDTO | null> {
     return this.rows.get(recordingId) ?? null
+  }
+
+  async searchRecordingIdsQuery(term: string, recordingIds: string[]): Promise<string[]> {
+    return [...this.rows.values()]
+      .filter((row) => recordingIds.includes(row.recordingId) && row.headline.includes(term))
+      .map((row) => row.recordingId)
   }
 }
 
