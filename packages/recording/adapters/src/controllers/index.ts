@@ -7,3 +7,4 @@ export { default as DeleteRecordingController } from './delete-recording-control
 export { default as RetryRecordingController } from './retry-recording-controller'
 export { default as GetRecordingForProcessingController } from './get-recording-for-processing-controller'
 export { default as AdvanceRecordingController } from './advance-recording-controller'
+export { default as SuggestRecordingTitleController } from './suggest-recording-title-controller'

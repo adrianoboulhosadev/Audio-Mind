@@ -13,6 +13,7 @@ import {
   GetRecordingForProcessingController,
   ListMyRecordingsController,
   SearchMyRecordingsController,
+  SuggestRecordingTitleController,
   RenameRecordingController,
   RetryRecordingController,
   UploadRecordingController,
@@ -94,6 +95,12 @@ export default class RecordingFacade {
 
   async getRecordingForProcessing(recordingId: string): Promise<RecordingDTO> {
     return new GetRecordingForProcessingController(this.queryRepository!).execute(recordingId)
+  }
+
+  /** The pipeline offering a name for an audio nobody named. The entity
+   * refuses it when the person already typed one. */
+  async suggestRecordingTitle(recordingId: string, title: string): Promise<void> {
+    await new SuggestRecordingTitleController(this.repository!).execute(recordingId, title)
   }
 
   async startTranscription(recordingId: string): Promise<void> {
