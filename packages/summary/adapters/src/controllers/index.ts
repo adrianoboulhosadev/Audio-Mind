@@ -1,5 +1,6 @@
 export { default as SummarizeTranscriptController } from './summarize-transcript-controller'
 export { default as RenderSummaryPdfController } from './render-summary-pdf-controller'
 export { default as GetSummaryController } from './get-summary-controller'
+export { default as SearchSummariesController } from './search-summaries-controller'
 export { default as GetSummaryPdfController } from './get-summary-pdf-controller'
 export { default as DeleteSummaryController } from './delete-summary-controller'

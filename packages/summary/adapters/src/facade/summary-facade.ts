@@ -8,6 +8,7 @@ import {
 import {
   DeleteSummaryController,
   GetSummaryController,
+  SearchSummariesController,
   GetSummaryPdfController,
   RenderSummaryPdfController,
   SummarizeTranscriptController,
@@ -44,6 +45,12 @@ export default class SummaryFacade {
 
   async getSummary(recordingId: string): Promise<SummaryDTO> {
     return new GetSummaryController(this.queryRepository!).execute(recordingId)
+  }
+
+  /** Which of THESE recordings have a summary mentioning the term. Ids in, ids
+   * out — this context never learns who owns them. */
+  async searchSummaries(term: string, recordingIds: string[], limit?: number): Promise<string[]> {
+    return new SearchSummariesController(this.queryRepository!).execute(term, recordingIds, limit)
   }
 
   async getSummaryPdf(recordingId: string): Promise<string> {
