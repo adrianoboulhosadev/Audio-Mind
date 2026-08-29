@@ -36,6 +36,25 @@ body {
   background-repeat: no-repeat;
 }
 
+/* Chrome/Safari repaint an autofilled input with their own light background,
+   which on a dark form reads as a broken field — and the background cannot be
+   overridden directly, because the UA style wins. The inset box-shadow is the
+   documented way around it: it covers the whole field with our own surface.
+   `-webkit-text-fill-color` is needed too, since `color` loses the same fight.
+   The long transition-delay keeps the flash from appearing for a moment before
+   the shadow paints over it. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--panel2) inset;
+  box-shadow: 0 0 0 1000px var(--panel2) inset;
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  border-radius: 0.5rem;
+  transition: background-color 100000s ease-in-out 0s;
+}
+
 ::selection {
   background: var(--accent);
   color: var(--accent-ink);

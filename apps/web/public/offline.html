@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio Mind — offline</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0a0e15;
+        color: #e9eef7;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 340px;
+      }
+      /* The same equalizer as the app icon and the loading state, standing
+         still — a static page has nothing to animate about. */
+      .bars {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 5px;
+        height: 34px;
+        margin-bottom: 20px;
+      }
+      .bars span {
+        width: 6px;
+        border-radius: 999px;
+        background: #5b8cff;
+      }
+      h1 {
+        font-size: 15px;
+        letter-spacing: 0.16em;
+        margin: 0 0 10px;
+        color: #c3cddc;
+      }
+      p {
+        color: #8291a8;
+        line-height: 1.6;
+        margin: 0;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="bars" aria-hidden="true">
+        <span style="height: 42%"></span>
+        <span style="height: 78%"></span>
+        <span style="height: 58%"></span>
+        <span style="height: 100%"></span>
+        <span style="height: 34%"></span>
+      </div>
+      <h1>SEM CONEXÃO</h1>
+      <p>Seus áudios continuam salvos. Volte a se conectar para ouvir, transcrever e resumir.</p>
+    </div>
+  </body>
+</html>

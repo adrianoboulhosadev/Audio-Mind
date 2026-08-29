@@ -82,7 +82,7 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
                 layoutId="file-upload-card"
                 initial={{ opacity: 0, scaleX: 0.96 }}
                 animate={{ opacity: 1, scaleX: 1 }}
-                className="relative z-20 mx-auto flex w-full flex-col gap-1 rounded-lg border border-line2 bg-panel p-4 shadow-card"
+                className="relative z-20 mx-auto flex w-full flex-col gap-1 rounded-lg border border-line2 bg-panel p-4"
               >
                 <div className="flex items-center justify-between gap-4">
                   <p className="truncate text-sm text-ink">{file.name}</p>
@@ -109,7 +109,7 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
                   animate: { x: 12, y: -12, opacity: 0.92 },
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="relative z-20 mx-auto flex h-24 w-full items-center justify-center rounded-lg border border-line2 bg-panel shadow-card"
+                className="relative z-20 mx-auto flex h-24 w-full items-center justify-center rounded-lg border border-line2 bg-panel"
               >
                 <UploadCloud size={22} className="text-muted" aria-hidden />
               </motion.div>

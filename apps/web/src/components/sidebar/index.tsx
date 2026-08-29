@@ -40,10 +40,6 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-
-      <p className="px-5 pb-5 text-xs leading-relaxed text-muted">
-        Grave ou envie um áudio e receba a transcrição, o resumo e o PDF.
-      </p>
     </aside>
   )
 }

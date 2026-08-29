@@ -15,7 +15,7 @@ export function Header() {
       {/* Roomier than the rest of the header on purpose: these three sit next to
           each other but do unrelated things, and "sair" is the one action here
           nobody wants to hit by accident. */}
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-4 sm:gap-6">
         <NotificationBell />
         <span className="hidden max-w-[12rem] truncate text-sm text-muted sm:block">
           {user?.name || user?.email}
