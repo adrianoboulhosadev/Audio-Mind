@@ -69,8 +69,13 @@ export class GroqSpeechToText implements SpeechToTextProvider {
     )
 
     // The SDK types this endpoint by the plain shape; verbose_json adds the
-    // language, so it is read defensively rather than asserted.
-    const verbose = response as { text?: string; language?: string }
+    // language and the segments, so they are read defensively rather than
+    // asserted.
+    const verbose = response as {
+      text?: string
+      language?: string
+      segments?: { start?: number; end?: number; text?: string }[]
+    }
 
     return {
       // An empty answer is NOT patched over here: the TranscriptText value
@@ -78,6 +83,11 @@ export class GroqSpeechToText implements SpeechToTextProvider {
       // with a reason the user can act on.
       text: verbose.text ?? '',
       language: verbose.language ?? null,
+      // Timestamps come in the SAME answer as the text — asking for
+      // verbose_json already paid for them. Passing them along is what lets the
+      // detail screen jump the player to the line the user clicked; the domain
+      // drops whatever comes back crooked.
+      segments: verbose.segments?.map(({ start, end, text }) => ({ start, end, text })),
       model: this.config.transcriptionModel,
     }
   }

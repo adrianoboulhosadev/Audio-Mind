@@ -92,6 +92,11 @@ export class TranscriptionStore implements TranscriptionRepository, Transcriptio
       language: transcription.language,
       model: transcription.model,
       wordCount: transcription.text.wordCount,
+      segments: transcription.segments.map((segment) => ({
+        startSeconds: segment.startSeconds,
+        endSeconds: segment.endSeconds,
+        text: segment.text,
+      })),
       createdAt: transcription.createdAt,
     })
   }
