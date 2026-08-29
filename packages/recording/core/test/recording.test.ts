@@ -101,17 +101,44 @@ describe('Recording', () => {
     )
   })
 
-  it('retry only works on a failed recording, and clears the reason', () => {
+  it('retry re-parks a failed recording and clears the reason', () => {
     const recording = build()
-    expect(() => recording.retry()).toThrow(
-      expect.objectContaining({ code: Errors.RECORDING_NOT_FAILED }),
-    )
 
     recording.fail('deu ruim')
     recording.retry()
 
     expect(recording.status).toBe('pending')
     expect(recording.failureReason).toBeNull()
+  })
+
+  it('retry also re-parks a READY recording — that is how an old audio gets the current pipeline', () => {
+    const recording = build()
+    recording.startTranscription()
+    recording.startSummarization()
+    recording.markAsReady()
+
+    recording.retry()
+
+    expect(recording.status).toBe('pending')
+  })
+
+  it('retry refuses a recording a job is already on', () => {
+    const recording = build()
+
+    // pending: the job is queued and has not started.
+    expect(() => recording.retry()).toThrow(
+      expect.objectContaining({ code: Errors.RECORDING_IN_PIPELINE }),
+    )
+
+    recording.startTranscription()
+    expect(() => recording.retry()).toThrow(
+      expect.objectContaining({ code: Errors.RECORDING_IN_PIPELINE }),
+    )
+
+    recording.startSummarization()
+    expect(() => recording.retry()).toThrow(
+      expect.objectContaining({ code: Errors.RECORDING_IN_PIPELINE }),
+    )
   })
 
   it('rename applies the title rule and touches updatedAt', () => {

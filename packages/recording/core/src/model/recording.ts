@@ -153,10 +153,29 @@ export class Recording extends AggregateRoot<Recording, RecordingProps> {
     this.record(new RecordingFailed(this.id.value, this.ownerId, this.title.value, trimmed))
   }
 
-  /** failed -> pending, so the SAME audio goes through the pipeline again
-   * (nothing was thrown away on failure — the file is still on disk). */
+  /**
+   * Sends the SAME audio through the pipeline again (nothing is ever thrown
+   * away — the file stays on disk).
+   *
+   * From `failed`, which is the obvious one. And from `ready` too: the pipeline
+   * of today produces things the pipeline of last month did not — timestamps in
+   * the transcript, a better model — and without this the only way to get them
+   * would be to delete the recording and upload it again.
+   *
+   * What it refuses is a recording a job is ALREADY on (pending, transcribing,
+   * summarizing): a second job over the same audio would mean two workers
+   * writing the same rows. `ready` staying terminal for the WORKER is what keeps
+   * a re-delivered job harmless — only this, an explicit act by the owner, moves
+   * a finished recording back.
+   *
+   * Reprocessing REPLACES the transcript and the summary (both are upserts by
+   * recordingId) and costs a full run of both models, so the screen says so
+   * before asking.
+   */
   retry(): void {
-    if (!this.isFailed) ConflictError.throwError(Errors.RECORDING_NOT_FAILED, this.status)
+    if (!this.isFailed && !this.isReady) {
+      ConflictError.throwError(Errors.RECORDING_IN_PIPELINE, this.status)
+    }
     this.status = 'pending'
     this.failureReason = null
     this.touch()

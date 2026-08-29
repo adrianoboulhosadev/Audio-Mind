@@ -8,10 +8,13 @@ interface Input {
 }
 
 /**
- * Sends a FAILED recording through the pipeline again. Nothing was thrown away
- * when it failed — the audio file is still on disk — so a retry is the same job
- * on the same bytes, not a re-upload. `Recording.retry()` is what refuses to
- * re-run anything that did not actually fail.
+ * Sends a recording through the pipeline again — the same job on the same
+ * bytes, not a re-upload: the audio file never left the disk. It works on a
+ * FAILED recording (the obvious case) and on a READY one (to get what the
+ * current pipeline produces and the old run did not).
+ *
+ * `Recording.retry()` owns the rule: what is refused is a recording a job is
+ * already on.
  */
 export default class RetryRecording implements UseCase<Input, void> {
   constructor(

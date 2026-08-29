@@ -65,12 +65,13 @@ test('rename and delete are refused for a stranger', async () => {
   expect(repository.size).toBe(1)
 })
 
-test('retry re-parks the SAME audio, and refuses anything that did not fail', async () => {
+test('retry re-parks the SAME audio, and refuses one a job is already on', async () => {
   const { repository, queue, recordingId } = await setup()
   const useCase = new RetryRecording(repository, queue)
 
+  // Still `pending` from the upload: a job is already queued for it.
   await expect(useCase.execute({ recordingId, ownerId: 'owner-1' })).rejects.toMatchObject({
-    code: Errors.RECORDING_NOT_FAILED,
+    code: Errors.RECORDING_IN_PIPELINE,
   })
 
   const recording = await repository.findById(recordingId)
