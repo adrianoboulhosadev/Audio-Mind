@@ -48,6 +48,20 @@ export default class TranscriptionRepositoryInMemory
     return row ? new Transcription({ ...row }) : null
   }
 
+  async searchRecordingIdsQuery(
+    term: string,
+    recordingIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    const lowered = term.toLowerCase()
+    return this.rows
+      .filter(
+        (row) => recordingIds.includes(row.recordingId) && row.text.toLowerCase().includes(lowered),
+      )
+      .slice(0, limit)
+      .map((row) => row.recordingId)
+  }
+
   async deleteByRecording(recordingId: string): Promise<void> {
     this.rows = this.rows.filter((current) => current.recordingId !== recordingId)
   }

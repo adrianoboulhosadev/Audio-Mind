@@ -21,6 +21,7 @@ export default class SpeechToTextProviderInMemory implements SpeechToTextProvide
       text: this.result.text ?? 'Bom dia, vamos começar a reunião.',
       language: this.result.language ?? 'pt',
       model: this.result.model ?? 'whisper-large-v3',
+      segments: this.result.segments,
     }
   }
 }
