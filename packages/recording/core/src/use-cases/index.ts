@@ -1,5 +1,6 @@
 export { default as UploadRecording } from './upload-recording'
 export { default as ListMyRecordingsQuery } from './list-my-recordings-query'
+export { default as SearchMyRecordingsQuery } from './search-my-recordings-query'
 export { default as GetRecordingQuery } from './get-recording-query'
 export { default as RenameRecording } from './rename-recording'
 export { default as DeleteRecording } from './delete-recording'

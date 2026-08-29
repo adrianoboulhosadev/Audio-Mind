@@ -79,6 +79,30 @@ export default class RecordingRepositoryInMemory
       .map((row) => ({ ...row }))
   }
 
+  async listAllIdsByOwnerQuery(ownerId: string): Promise<string[]> {
+    return this.rows.filter((row) => row.ownerId === ownerId).map((row) => row.id)
+  }
+
+  // Same shape as the SQL: title match OR one of the ids another context
+  // matched, always inside this owner's rows, newest first.
+  async searchByOwnerQuery(
+    ownerId: string,
+    term: string,
+    alsoIds: string[],
+    limit: number,
+  ): Promise<RecordingDTO[]> {
+    const lowered = term.toLowerCase()
+    return this.rows
+      .filter((row) => row.ownerId === ownerId)
+      .filter(
+        (row) =>
+          (Boolean(term) && row.title.toLowerCase().includes(lowered)) || alsoIds.includes(row.id),
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit)
+      .map((row) => ({ ...row }))
+  }
+
   async findByIdQuery(id: string): Promise<RecordingDTO | null> {
     const row = this.rows.find((current) => current.id === id)
     return row ? { ...row } : null
