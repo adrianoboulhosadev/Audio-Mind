@@ -5,6 +5,8 @@ import {
   TranscriptionQueryRepository,
   TranscriptionRepository,
   TranscriptSegmentDTO,
+  TranscriptMatchDTO,
+  findTranscriptMatch,
 } from '@transcription/adapters'
 import { PrismaService } from '../db/prisma.service'
 
@@ -52,22 +54,34 @@ export class PrismaTranscriptionRepository
   }
 
   /**
-   * The subset of `recordingIds` whose transcript mentions the term. ILIKE
-   * (`contains` + insensitive) rather than full-text: no column, no index, no
-   * dictionary to keep in sync — and the id list already bounds the scan to one
-   * person's library.
+   * The subset of `recordingIds` whose transcript mentions the term, each with
+   * the stretch that matched and the second it was said.
+   *
+   * Two steps on purpose: SQL says which rows mention it (ILIKE — no column, no
+   * index, no dictionary, and the id list already bounds the scan to one
+   * person's library), and the domain function says where in each row. Finding
+   * the segment in SQL would mean querying inside a JSON column for something
+   * the context already knows how to answer.
    */
-  async searchRecordingIdsQuery(
+  async searchMatchesQuery(
     term: string,
     recordingIds: string[],
     limit: number,
-  ): Promise<string[]> {
+  ): Promise<TranscriptMatchDTO[]> {
     const rows = await this.prisma.transcription.findMany({
       where: { recordingId: { in: recordingIds }, text: { contains: term, mode: 'insensitive' } },
-      select: { recordingId: true },
+      select: { recordingId: true, text: true, segments: true },
       take: limit,
     })
-    return rows.map((row) => row.recordingId)
+
+    return rows.map((row) => {
+      const match = findTranscriptMatch(row.text, toSegmentDTOs(row.segments), term)
+      return {
+        recordingId: row.recordingId,
+        excerpt: match?.excerpt ?? '',
+        startSeconds: match?.startSeconds ?? null,
+      }
+    })
   }
 
   async deleteByRecording(recordingId: string): Promise<void> {

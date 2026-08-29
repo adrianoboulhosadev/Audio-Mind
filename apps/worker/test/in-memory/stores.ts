@@ -126,10 +126,10 @@ export class TranscriptionStore implements TranscriptionRepository, Transcriptio
 
   // Searching is a backend feature; the port is shared, so the store answers it
   // honestly and the pipeline tests never call it.
-  async searchRecordingIdsQuery(term: string, recordingIds: string[]): Promise<string[]> {
+  async searchMatchesQuery(term: string, recordingIds: string[]) {
     return [...this.rows.values()]
       .filter((row) => recordingIds.includes(row.recordingId) && row.text.includes(term))
-      .map((row) => row.recordingId)
+      .map((row) => ({ recordingId: row.recordingId, excerpt: row.text, startSeconds: null }))
   }
 }
 

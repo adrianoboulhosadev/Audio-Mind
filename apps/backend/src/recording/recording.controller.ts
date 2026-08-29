@@ -30,6 +30,19 @@ import { PrismaRecordingRepository } from './prisma-recording-repository'
 import { RecordingEraser } from './recording-eraser'
 
 /**
+ * One search hit: the recording, plus where the term showed up in what was said.
+ *
+ * Composed HERE, in the app layer, because it spans two contexts — neither the
+ * recording nor the transcription owns a type that mentions the other. The front
+ * declares the same three fields for the same reason.
+ */
+export interface SearchResult {
+  recording: RecordingDTO
+  excerpt: string | null
+  startSeconds: number | null
+}
+
+/**
  * The user's library. Every route takes the owner id from `@authenticatedUser`
  * (never from the body or the path), and the use cases answer
  * RECORDING_NOT_FOUND for someone else's audio — a recording is private, so
@@ -90,17 +103,21 @@ export class RecordingController {
    * THOSE mention the term, and the recording context answers with its own rows.
    * Neither transcription nor summary ever learns who owns anything — the same
    * shape every other cross-context flow here uses.
+   *
+   * The transcript answers with the STRETCH that matched and the second it was
+   * said, and that rides along to the screen: finding the audio is half the
+   * job, and the other half is not making the person hunt through an hour of it.
    */
   @Get('search')
   async search(
     @authenticatedUser() user: UserDTO,
     @Query('q') term?: string,
-  ): Promise<RecordingDTO[]> {
+  ): Promise<SearchResult[]> {
     const searched = term?.trim() ?? ''
     if (!searched) return []
 
     const ids = await this.facade().listMyRecordingIds(user.id)
-    const [byTranscript, bySummary] = await Promise.all([
+    const [transcriptMatches, bySummary] = await Promise.all([
       new TranscriptionFacade(undefined, this.transcriptionRepository).searchTranscripts(
         searched,
         ids,
@@ -108,9 +125,21 @@ export class RecordingController {
       new SummaryFacade(undefined, this.summaryRepository).searchSummaries(searched, ids),
     ])
 
-    return this.facade().searchMyRecordings(user.id, searched, [
-      ...new Set([...byTranscript, ...bySummary]),
-    ])
+    const matched = [...new Set([...transcriptMatches.map((m) => m.recordingId), ...bySummary])]
+    const recordings = await this.facade().searchMyRecordings(user.id, searched, matched)
+    const excerpts = new Map(transcriptMatches.map((match) => [match.recordingId, match]))
+
+    // A recording found by its TITLE or by its summary has no stretch to show —
+    // the title already says what it is, and inventing an excerpt from the
+    // transcript it did not match would be pointing at the wrong place.
+    return recordings.map((recording) => {
+      const match = excerpts.get(recording.id)
+      return {
+        recording,
+        excerpt: match?.excerpt || null,
+        startSeconds: match?.startSeconds ?? null,
+      }
+    })
   }
 
   @Get(':id')
