@@ -22,6 +22,7 @@ export default function RecordingDetailPage() {
     recording,
     summary,
     transcription,
+    refreshing,
     player,
     isLoading,
     title,
@@ -122,12 +123,17 @@ export default function RecordingDetailPage() {
         </section>
       ) : null}
 
+      {/* Two different sentences on purpose: the FIRST time there is nothing on
+          the page yet, so the wait is the whole content; on a reprocess the
+          previous transcript and summary are right below, and the screen has to
+          say they are the old ones instead of letting them pass as current. */}
       {recording.status !== 'ready' && recording.status !== 'failed' ? (
         <section className="rounded-2xl border border-line2 bg-panel p-5">
-          <Loading compact label="PROCESSANDO" />
+          <Loading compact label={refreshing ? 'ATUALIZANDO' : 'PROCESSANDO'} />
           <p className="text-center text-xs text-muted">
-            Estou transcrevendo e resumindo. Pode fechar a página — aviso na sua caixa de entrada
-            quando terminar.
+            {refreshing
+              ? 'Estou transcrevendo e resumindo de novo. O que está aqui embaixo ainda é o resultado anterior — troco assim que o novo ficar pronto.'
+              : 'Estou transcrevendo e resumindo. Pode fechar a página — aviso na sua caixa de entrada quando terminar.'}
           </p>
         </section>
       ) : null}

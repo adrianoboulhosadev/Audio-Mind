@@ -5,4 +5,4 @@ export {
   onAccessTokenChange,
   refreshAccessToken,
 } from './interceptors'
-export { errorMessage, errorCode } from './errors'
+export { errorMessage, errorCode, isNotFound } from './errors'
