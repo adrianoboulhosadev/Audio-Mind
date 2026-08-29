@@ -11,6 +11,11 @@ export const SKIP_SECONDS = 15
 /**
  * Fetches the audio as a BLOB and drives the playback.
  *
+ * It sits in the ROUTE's hooks folder, not inside the player component, because
+ * two components on this screen drive the same sound: the player, and the
+ * transcript, where clicking a line jumps to the second it was said. A second
+ * copy of this state would be a second `<audio>` element.
+ *
  * A plain `<audio src="…">` cannot be used: the file is served by an
  * authenticated route (the uploads folder is deliberately not public — see the
  * backend), and the browser sends no Authorization header for a media element.
@@ -79,6 +84,17 @@ export function useAudioPlayer(recordingId: string) {
     [seekTo],
   )
 
+  /** Jump there AND start playing — what clicking a line of the transcript
+   * means. Seeking without playing would leave the user pressing play as a
+   * second step, every single time. */
+  const playFrom = useCallback(
+    (seconds: number) => {
+      seekTo(seconds)
+      void audioRef.current?.play()
+    },
+    [seekTo],
+  )
+
   const changeRate = useCallback((value: number) => {
     const audio = audioRef.current
     if (!audio) return
@@ -114,7 +130,11 @@ export function useAudioPlayer(recordingId: string) {
     audioProps,
     toggle,
     seekTo,
+    playFrom,
     skip,
     changeRate,
   }
 }
+
+/** What the player hands to the components that drive it. */
+export type AudioPlayerState = ReturnType<typeof useAudioPlayer>

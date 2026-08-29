@@ -20,6 +20,7 @@ export default function RecordingDetailPage() {
     recording,
     summary,
     transcription,
+    player,
     isLoading,
     title,
     setTitle,
@@ -69,7 +70,7 @@ export default function RecordingDetailPage() {
         </p>
 
         <div className="mt-4">
-          <AudioPlayer recordingId={recording.id} />
+          <AudioPlayer player={player} />
         </div>
 
         <div className="mt-5 flex flex-wrap items-end gap-2">
@@ -113,7 +114,9 @@ export default function RecordingDetailPage() {
       ) : null}
 
       {summary ? <SummaryPanel summary={summary} recordingId={recording.id} /> : null}
-      {transcription ? <TranscriptPanel transcription={transcription} /> : null}
+      {transcription ? (
+        <TranscriptPanel transcription={transcription} player={player} />
+      ) : null}
     </div>
   )
 }

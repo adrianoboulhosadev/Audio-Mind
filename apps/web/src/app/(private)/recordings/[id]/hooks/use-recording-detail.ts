@@ -9,6 +9,7 @@ import type { SummaryDTO } from '@summary/adapters'
 import type { TranscriptionDTO } from '@transcription/adapters'
 import { api, errorMessage } from '@/lib/api'
 import { RECORDINGS_KEY } from '../../hooks/use-recordings'
+import { useAudioPlayer } from './use-audio-player'
 
 /**
  * Everything one recording's screen needs.
@@ -23,6 +24,9 @@ export function useRecordingDetail(recordingId: string) {
   const queryClient = useQueryClient()
   const router = useRouter()
   const [title, setTitle] = useState('')
+  // One player for the whole screen: the transcript drives the same sound the
+  // controls do.
+  const player = useAudioPlayer(recordingId)
 
   const { data: recording, isLoading } = useQuery({
     queryKey: [...RECORDINGS_KEY, recordingId],
@@ -92,6 +96,7 @@ export function useRecordingDetail(recordingId: string) {
     recording,
     summary,
     transcription,
+    player,
     isLoading,
     title,
     setTitle,

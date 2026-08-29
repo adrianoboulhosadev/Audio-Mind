@@ -3,8 +3,8 @@
 import { Pause, Play, RotateCcw, RotateCw } from 'lucide-react'
 import { IconButton } from '@/components/icon-button'
 import { formatDuration } from '@/lib/format'
+import { AudioPlayerState, SKIP_SECONDS } from '../../hooks/use-audio-player'
 import { PLAYBACK_RATES } from './data/playback-rates'
-import { SKIP_SECONDS, useAudioPlayer } from './hooks/use-audio-player'
 
 /**
  * The player, drawn by us.
@@ -17,10 +17,13 @@ import { SKIP_SECONDS, useAudioPlayer } from './hooks/use-audio-player'
  * from an hour of meeting.
  *
  * The `<audio>` element is still here doing the work — just with `controls` off.
+ *
+ * The state comes from the ROUTE's hook rather than from here: the transcript
+ * next door seeks this same element when a line is clicked.
  */
-export function AudioPlayer({ recordingId }: { recordingId: string }) {
+export function AudioPlayer({ player }: { player: AudioPlayerState }) {
   const { source, failed, playing, currentTime, duration, rate, audioProps, toggle, seekTo, skip, changeRate } =
-    useAudioPlayer(recordingId)
+    player
 
   if (failed) return <p className="text-xs text-bad">Não consegui carregar esse áudio.</p>
   if (!source) return <p className="text-xs text-muted">Carregando o áudio…</p>
