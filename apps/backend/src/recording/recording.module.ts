@@ -7,12 +7,14 @@ import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
 import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
+import { AudioAccessGuard } from './audio-access.guard'
 import { RecordingController } from './recording.controller'
 import { RecordingEraser } from './recording-eraser'
+import { RecordingStreamController } from './recording-stream.controller'
 
 @Module({
   imports: [DbModule, AuthModule, NotificationStoreModule],
-  controllers: [RecordingController],
+  controllers: [RecordingController, RecordingStreamController],
   providers: [
     PrismaRecordingRepository,
     // The delete cascade is cross-context and lives in the eraser, so it needs
@@ -20,6 +22,7 @@ import { RecordingEraser } from './recording-eraser'
     PrismaTranscriptionRepository,
     PrismaSummaryRepository,
     RecordingEraser,
+    AudioAccessGuard,
     BullMqRecordingProcessingQueue,
   ],
   // The eraser is exported because erasing an ACCOUNT means erasing the whole
@@ -27,6 +30,9 @@ import { RecordingEraser } from './recording-eraser'
   exports: [PrismaRecordingRepository, RecordingEraser],
 })
 export class RecordingModule implements NestModule {
+  // Only the REST controller: the audio stream authenticates by guard, because
+  // an <audio> element cannot send an Authorization header (see
+  // AudioAccessGuard).
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(AuthMiddleware).forRoutes(RecordingController)
   }

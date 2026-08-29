@@ -20,6 +20,7 @@ import { authenticatedUser } from '../shared/authenticated-user.decorator'
 import { requireFields } from '../shared/require-fields'
 import { DomainEventListener } from '../notification/domain-event-listener'
 import { normalizeMimeType, resolveUploadPath } from '../upload/uploads.config'
+import { signAudioAccess } from './audio-access-token'
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
 import { RecordingEraser } from './recording-eraser'
@@ -104,13 +105,33 @@ export class RecordingController {
   }
 
   /**
-   * Streams the audio to its owner.
+   * Hands out a short-lived link the browser's `<audio>` element can load by
+   * itself — which is what makes playback start immediately and seeking fetch
+   * only the bytes around the moment asked for (see RecordingStreamController).
+   *
+   * The recording is read first, so a link is only ever issued for an audio the
+   * caller owns.
+   */
+  @Get(':id/audio/link')
+  async audioLink(
+    @authenticatedUser() user: UserDTO,
+    @Param('id') id: string,
+  ): Promise<{ url: string }> {
+    await this.facade().getRecording(id, user.id)
+    return { url: `/recording/stream/${id}?token=${signAudioAccess(user.id, id)}` }
+  }
+
+  /**
+   * Streams the whole audio to its owner, in one piece.
    *
    * The uploads folder is NOT served statically: an audio (and its summary) is
    * private, and a static mount would make every file readable by anyone who
-   * learned its URL. The cost is that the browser cannot simply point <audio>
-   * at it — no way to send the Authorization header — so the front fetches it
-   * as a blob and plays an object URL. Fine at a 25 MB ceiling.
+   * learned its URL.
+   *
+   * This is the header-authenticated route, and it is still the one the front
+   * uses for a WebM recorded in the browser: that container carries neither a
+   * duration nor a seek index, so a player CANNOT seek it by range — it needs
+   * the whole file. Everything else plays through the streaming route.
    */
   @Get(':id/audio')
   async audio(
