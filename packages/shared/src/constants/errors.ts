@@ -34,8 +34,9 @@ export const Errors = {
   // The pipeline transition asked for does not exist from the current status
   // (e.g. summarizing something that was never transcribed).
   INVALID_RECORDING_STATUS: 'INVALID_RECORDING_STATUS',
-  // Only a FAILED recording can be sent through the pipeline again.
-  RECORDING_NOT_FAILED: 'RECORDING_NOT_FAILED',
+  // Reprocessing is refused while a job is already on this recording (queued or
+  // running) — a second one would have two workers writing the same rows.
+  RECORDING_IN_PIPELINE: 'RECORDING_IN_PIPELINE',
 
   // transcription — what the speech-to-text model heard
   TRANSCRIPTION_NOT_FOUND: 'TRANSCRIPTION_NOT_FOUND',
