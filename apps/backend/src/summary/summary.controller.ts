@@ -1,13 +1,17 @@
-import { Controller, Get, Param, Res } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Param, Post, Res } from '@nestjs/common'
 import { Response } from 'express'
 import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
-import { SummaryDTO, SummaryFacade } from '@summary/adapters'
+import { AskedAnswerDTO, SummaryDTO, SummaryFacade } from '@summary/adapters'
 import { RecordingFacade } from '@recording/adapters'
+import { TranscriptionFacade } from '@transcription/adapters'
 import { UserDTO } from '@auth/adapters'
 import { authenticatedUser } from '../shared/authenticated-user.decorator'
+import { requireFields } from '../shared/require-fields'
 import { PrismaRecordingRepository } from '../recording/prisma-recording-repository'
+import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
 import { resolveUploadPath } from '../upload/uploads.config'
+import { GroqQuestionAnswerer } from './groq-question-answerer'
 import { PrismaSummaryRepository } from './prisma-summary-repository'
 
 /**
@@ -22,6 +26,10 @@ export class SummaryController {
   constructor(
     private readonly recordingRepository: PrismaRecordingRepository,
     private readonly summaryRepository: PrismaSummaryRepository,
+    // Asking a question reads the TRANSCRIPT and answers with a model — the
+    // recording says who owns it, this context does the talking.
+    private readonly transcriptionRepository: PrismaTranscriptionRepository,
+    private readonly answerer: GroqQuestionAnswerer,
   ) {}
 
   private summaries(): SummaryFacade {
@@ -39,6 +47,39 @@ export class SummaryController {
   ): Promise<SummaryDTO> {
     await this.assertOwner(recordingId, user.id)
     return this.summaries().getSummary(recordingId)
+  }
+
+  /**
+   * Answers a question about ONE recording, from its transcript.
+   *
+   * Synchronous on purpose, unlike everything else that talks to a model here:
+   * this is seconds, with the person waiting for it on screen — parking it in
+   * the queue would mean answering a question through the inbox.
+   *
+   * Nothing is stored. The answer is a conversation about the audio, not a new
+   * fact about it, and persisting it would raise the question of what happens
+   * when the recording is reprocessed and the transcript changes underneath.
+   */
+  @Post('recording/:id/ask')
+  @HttpCode(200)
+  async ask(
+    @authenticatedUser() user: UserDTO,
+    @Param('id') recordingId: string,
+    @Body() input: { question?: string },
+  ): Promise<AskedAnswerDTO> {
+    requireFields(input, ['question'])
+    const recording = await this.assertOwner(recordingId, user.id)
+    const transcription = await new TranscriptionFacade(
+      undefined,
+      this.transcriptionRepository,
+    ).getTranscription(recordingId)
+
+    return new SummaryFacade(undefined, undefined, undefined, undefined, this.answerer).askAboutTranscript({
+      recordingTitle: recording.title,
+      transcript: transcription.text,
+      question: input.question!,
+      language: process.env.SUMMARY_LANGUAGE ?? 'pt',
+    })
   }
 
   /**
