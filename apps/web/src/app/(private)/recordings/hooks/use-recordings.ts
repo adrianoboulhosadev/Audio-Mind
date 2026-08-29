@@ -1,13 +1,22 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { RecordingDTO, RecordingSource, UploadRecordingInput } from '@recording/adapters'
 import { api, errorMessage } from '@/lib/api'
 import { readAudioDuration } from '@/lib/audio-duration'
 
 export const RECORDINGS_KEY = ['recordings']
+
+/** Below this the search does not even leave the browser. It mirrors the guard
+ * in the domain (SearchMyRecordingsQuery) — which is what actually enforces it;
+ * here it only spares a request that would answer nothing. */
+const MIN_SEARCH_LENGTH = 2
+
+/** Long enough that typing a word is ONE request, short enough that the list
+ * feels like it is following along. */
+const SEARCH_DEBOUNCE_MS = 300
 
 interface UploadArgs {
   title: string
@@ -30,11 +39,33 @@ interface UploadArgs {
 export function useRecordings() {
   const queryClient = useQueryClient()
   const [pendingDelete, setPendingDelete] = useState<RecordingDTO | null>(null)
+  const [search, setSearch] = useState('')
+  const [term, setTerm] = useState('')
 
-  const { data: recordings = [], isLoading } = useQuery({
+  // The typed value drives the input; the debounced one drives the request.
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data: library = [], isLoading } = useQuery({
     queryKey: RECORDINGS_KEY,
     queryFn: async () => {
       const { data } = await api.get<RecordingDTO[]>('/recording')
+      return data
+    },
+  })
+
+  const searching = term.length >= MIN_SEARCH_LENGTH
+
+  // The search goes to the SERVER and not over the loaded list on purpose: what
+  // makes it worth having is that it reads the transcript and the summary, and
+  // neither of those is in the browser.
+  const { data: results = [], isFetching: searchPending } = useQuery({
+    queryKey: [...RECORDINGS_KEY, 'search', term],
+    enabled: searching,
+    queryFn: async () => {
+      const { data } = await api.get<RecordingDTO[]>('/recording/search', { params: { q: term } })
       return data
     },
   })
@@ -83,8 +114,14 @@ export function useRecordings() {
   })
 
   return {
-    recordings,
+    recordings: searching ? results : library,
     isLoading,
+    search,
+    setSearch,
+    searching,
+    // Only while there is no previous answer on screen: re-fetching the same
+    // term should not blank the list the user is already reading.
+    searchPending: searching && searchPending && results.length === 0,
     upload: upload.mutateAsync,
     uploading: upload.isPending,
     pendingDelete,
