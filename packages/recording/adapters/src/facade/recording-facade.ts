@@ -12,6 +12,7 @@ import {
   GetRecordingController,
   GetRecordingForProcessingController,
   ListMyRecordingsController,
+  SearchMyRecordingsController,
   RenameRecordingController,
   RetryRecordingController,
   UploadRecordingController,
@@ -46,6 +47,27 @@ export default class RecordingFacade {
 
   async listMyRecordings(ownerId: string, limit?: number): Promise<RecordingDTO[]> {
     return new ListMyRecordingsController(this.queryRepository!).execute(ownerId, limit)
+  }
+
+  /** The owner's library filtered by a term. `matchedIds` are the recordings
+   * the transcript/summary contexts matched — the app layer asks them first,
+   * because neither of them knows who owns anything. */
+  async searchMyRecordings(
+    ownerId: string,
+    term: string,
+    matchedIds?: string[],
+    limit?: number,
+  ): Promise<RecordingDTO[]> {
+    return new SearchMyRecordingsController(this.queryRepository!).execute(
+      ownerId,
+      term,
+      matchedIds,
+      limit,
+    )
+  }
+
+  async listMyRecordingIds(ownerId: string): Promise<string[]> {
+    return this.queryRepository!.listAllIdsByOwnerQuery(ownerId)
   }
 
   async getRecording(recordingId: string, ownerId: string): Promise<RecordingDTO> {
