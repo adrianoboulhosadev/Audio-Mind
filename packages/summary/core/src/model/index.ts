@@ -1,3 +1,5 @@
 export * from './summary-text'
+export * from './transcript-question'
 export * from './summary'
 export * from './summary-dto'
+export * from './asked-answer-dto'
