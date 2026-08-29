@@ -36,6 +36,7 @@ export default class TranscribeRecording implements UseCase<Input, void> {
       text: result.text,
       language: result.language,
       model: result.model,
+      segments: result.segments,
     })
 
     await this.repository.save(transcription)

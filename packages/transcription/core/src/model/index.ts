@@ -1,3 +1,4 @@
 export * from './transcript-text'
+export * from './transcript-segment'
 export * from './transcription'
 export * from './transcription-dto'

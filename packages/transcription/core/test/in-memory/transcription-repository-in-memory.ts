@@ -11,6 +11,9 @@ interface TranscriptionRow {
   text: string
   language: string | null
   model: string
+  // Serialized exactly like the Json column: the provider's keys, so the
+  // reconstitution below is the same round-trip the Prisma repository does.
+  segments: { start: number; end: number; text: string }[]
   createdAt: Date
 }
 
@@ -28,6 +31,11 @@ export default class TranscriptionRepositoryInMemory
       text: transcription.text.value,
       language: transcription.language,
       model: transcription.model,
+      segments: transcription.segments.map((segment) => ({
+        start: segment.startSeconds,
+        end: segment.endSeconds,
+        text: segment.text,
+      })),
       createdAt: transcription.createdAt,
     }
     const index = this.rows.findIndex((current) => current.recordingId === row.recordingId)
@@ -47,7 +55,15 @@ export default class TranscriptionRepositoryInMemory
   async findByRecordingQuery(recordingId: string): Promise<TranscriptionDTO | null> {
     const row = this.rows.find((current) => current.recordingId === recordingId)
     if (!row) return null
-    return { ...row, wordCount: row.text.split(/\s+/).filter(Boolean).length }
+    return {
+      ...row,
+      wordCount: row.text.split(/\s+/).filter(Boolean).length,
+      segments: row.segments.map((segment) => ({
+        startSeconds: segment.start,
+        endSeconds: segment.end,
+        text: segment.text,
+      })),
+    }
   }
 
   get size(): number {

@@ -13,6 +13,9 @@ export interface SpeechToTextResult {
   language: string | null
   /** Which model actually answered — stored with the transcript. */
   model: string
+  /** When each stretch was said, if the provider reports it. Optional: the
+   * domain treats timestamps as a bonus, never as a condition. */
+  segments?: { start?: number; end?: number; text?: string }[]
 }
 
 /**
