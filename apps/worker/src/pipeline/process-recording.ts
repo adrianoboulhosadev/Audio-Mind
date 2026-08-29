@@ -62,9 +62,17 @@ export async function processRecording(
       language: summaryLanguage,
     })
 
+    // The summary knows what the audio was about, so an audio nobody named gets
+    // named here. The entity refuses the suggestion when the person typed a
+    // title, and the recording is re-read because the command answers no value
+    // (CQRS) — and the PDF should carry the FINAL title, not the placeholder.
+    const summary = await summaries.getSummary(recordingId)
+    await recordings.suggestRecordingTitle(recordingId, summary.headline)
+    const named = await recordings.getRecordingForProcessing(recordingId)
+
     // The PDF is rendered before the recording is called ready, so "pronto" in
     // the inbox never links to a summary whose download button does nothing.
-    await summaries.renderSummaryPdf(recordingId, recording.title)
+    await summaries.renderSummaryPdf(recordingId, named.title)
 
     await recordings.completeRecording(recordingId)
   } catch (error) {

@@ -1,4 +1,4 @@
-import { RecordingFacade } from '@recording/adapters'
+import { RecordingFacade, RecordingTitle } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { Errors, ValidationError } from 'shared'
@@ -14,12 +14,19 @@ import {
 
 const RECORDING_ID = '11111111-1111-4111-8111-111111111111'
 
-function setup(options: { status?: string; speechToText?: FakeSpeechToText; generator?: FakeSummaryGenerator } = {}) {
+function setup(
+  options: {
+    status?: string
+    title?: string
+    speechToText?: FakeSpeechToText
+    generator?: FakeSummaryGenerator
+  } = {},
+) {
   const recordingStore = new RecordingStore()
   recordingStore.seed({
     id: RECORDING_ID,
     ownerId: 'owner-1',
-    title: 'Daily do time',
+    title: options.title ?? 'Daily do time',
     source: 'upload',
     audioUrl: '/uploads/audios/abc.mp3',
     mimeType: 'audio/mpeg',
@@ -127,4 +134,23 @@ test('a model that fails mid-summary never leaves the recording stuck on transcr
   const recording = context.recordingStore.get(RECORDING_ID)
   expect(recording.status).toBe('failed')
   expect(recording.failureReason).toContain('resumo')
+})
+
+test('names an audio nobody named, using the summary s headline', async () => {
+  const context = setup({ title: RecordingTitle.PLACEHOLDER })
+
+  await processRecording(RECORDING_ID, context.deps)
+
+  const summary = await context.summaryStore.findByRecordingQuery(RECORDING_ID)
+  expect(context.recordingStore.get(RECORDING_ID).title).toBe(summary!.headline)
+  // And the PDF carries the FINAL name, not the placeholder it started with.
+  expect(context.renderer.calls[0].recordingTitle).toBe(summary!.headline)
+})
+
+test('a title the person typed survives the pipeline', async () => {
+  const context = setup({ title: 'Daily do time' })
+
+  await processRecording(RECORDING_ID, context.deps)
+
+  expect(context.recordingStore.get(RECORDING_ID).title).toBe('Daily do time')
 })
