@@ -14,11 +14,15 @@ import { Response } from 'express'
 import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { RecordingDTO, RecordingFacade, RenameRecordingInput, UploadRecordingInput } from '@recording/adapters'
+import { SummaryFacade } from '@summary/adapters'
+import { TranscriptionFacade } from '@transcription/adapters'
 import { UserDTO } from '@auth/adapters'
 import { allowanceFor } from '../auth/upload-allowance'
 import { authenticatedUser } from '../shared/authenticated-user.decorator'
 import { requireFields } from '../shared/require-fields'
 import { DomainEventListener } from '../notification/domain-event-listener'
+import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
+import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
 import { normalizeMimeType, resolveUploadPath } from '../upload/uploads.config'
 import { signAudioAccess } from './audio-access-token'
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
@@ -38,6 +42,10 @@ export class RecordingController {
     private readonly queue: BullMqRecordingProcessingQueue,
     private readonly events: DomainEventListener,
     private readonly eraser: RecordingEraser,
+    // Searching reads the OTHER contexts' text (transcript, summary) and joins
+    // on the recording — cross-context, so it is orchestrated here.
+    private readonly transcriptionRepository: PrismaTranscriptionRepository,
+    private readonly summaryRepository: PrismaSummaryRepository,
   ) {}
 
   private facade(): RecordingFacade {
@@ -71,6 +79,38 @@ export class RecordingController {
     @Query('limit') limit?: string,
   ): Promise<RecordingDTO[]> {
     return this.facade().listMyRecordings(user.id, limit ? Number(limit) : undefined)
+  }
+
+  /**
+   * Search across the library — the title, what was SAID (the transcript) and
+   * what the model wrote about it (the summary).
+   *
+   * Cross-context, so it runs in this order and nowhere else: the recording
+   * context says which ids belong to the caller, the other two say which of
+   * THOSE mention the term, and the recording context answers with its own rows.
+   * Neither transcription nor summary ever learns who owns anything — the same
+   * shape every other cross-context flow here uses.
+   */
+  @Get('search')
+  async search(
+    @authenticatedUser() user: UserDTO,
+    @Query('q') term?: string,
+  ): Promise<RecordingDTO[]> {
+    const searched = term?.trim() ?? ''
+    if (!searched) return []
+
+    const ids = await this.facade().listMyRecordingIds(user.id)
+    const [byTranscript, bySummary] = await Promise.all([
+      new TranscriptionFacade(undefined, this.transcriptionRepository).searchTranscripts(
+        searched,
+        ids,
+      ),
+      new SummaryFacade(undefined, this.summaryRepository).searchSummaries(searched, ids),
+    ])
+
+    return this.facade().searchMyRecordings(user.id, searched, [
+      ...new Set([...byTranscript, ...bySummary]),
+    ])
   }
 
   @Get(':id')

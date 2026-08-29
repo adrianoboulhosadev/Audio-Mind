@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Prisma } from 'database'
 import {
   Recording,
   RecordingDTO,
@@ -98,6 +99,43 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
   async listByOwnerQuery(ownerId: string, limit: number): Promise<RecordingDTO[]> {
     const rows = await this.prisma.recording.findMany({
       where: { ownerId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+    return rows.map((row) => this.toDTO(row))
+  }
+
+  /** Ids only, uncapped: the app layer needs the WHOLE set to ask the other
+   * contexts which of these recordings mention a word (see the port). */
+  async listAllIdsByOwnerQuery(ownerId: string): Promise<string[]> {
+    const rows = await this.prisma.recording.findMany({
+      where: { ownerId },
+      select: { id: true },
+    })
+    return rows.map((row) => row.id)
+  }
+
+  /**
+   * Title match OR one of the ids the derived contexts matched, always inside
+   * this owner's rows.
+   *
+   * `contains` + insensitive is ILIKE, not full-text: it needs no column, no
+   * index and no dictionary, and for a personal library it answers instantly.
+   * The day it stops being instant, the replacement is a tsvector column — and
+   * this method is the only place that would change.
+   */
+  async searchByOwnerQuery(
+    ownerId: string,
+    term: string,
+    alsoIds: string[],
+    limit: number,
+  ): Promise<RecordingDTO[]> {
+    const matches: Prisma.RecordingWhereInput[] = []
+    if (term) matches.push({ title: { contains: term, mode: 'insensitive' as const } })
+    if (alsoIds.length > 0) matches.push({ id: { in: alsoIds } })
+
+    const rows = await this.prisma.recording.findMany({
+      where: { ownerId, OR: matches },
       orderBy: { createdAt: 'desc' },
       take: limit,
     })
