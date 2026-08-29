@@ -79,6 +79,11 @@ model Transcription {
   text        String
   language    String?
   model       String
+  // When each stretch of speech was said, as the model reported it — the list
+  // the detail screen turns into clickable timestamps. Json and not a table:
+  // it is always read and written WITH the transcript and never queried on its
+  // own, exactly like the summary's topics/action_items.
+  segments    Json?
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("transcriptions")
