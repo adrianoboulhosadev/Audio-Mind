@@ -158,6 +158,20 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
   que leu, então a próxima volta menor e o laço termina numa página vazia. Nada de inventar uma
   porta de listagem sem teto só pra isso.
 
+### Busca (cross-context, TRAVADO)
+
+- **A ordem é sempre a mesma**: o `recording` diz **quais ids são do dono** (`listAllIdsByOwnerQuery`),
+  `transcription` e `summary` dizem **quais desses casam** com o termo (ids entram, ids saem), e o
+  `recording` responde com as **próprias linhas**. Nenhum dos dois derivados aprende o que é dono —
+  é a mesma forma do resto do projeto.
+- **Passar os ids do dono ANTES não é enfeite**: sem isso a busca de texto varreria a tabela inteira
+  e o teto poderia gastar as vagas com gravação de outra pessoa antes de o filtro de dono rodar.
+- **ILIKE (`contains` + `insensitive`), não full-text**: não precisa de coluna, índice nem
+  dicionário, e a lista de ids já limita a varredura a uma biblioteca. O substituto, no dia em que
+  doer, é uma coluna `tsvector` — e o único lugar que muda é o método do repositório.
+- **Termo com menos de 2 caracteres devolve vazio**, nunca a biblioteca inteira: uma "busca" que
+  casa com tudo não é busca.
+
 ## O pipeline (assíncrono)
 
 Estados do `Recording`, e cada transição é um **método** que valida a própria precondição:
@@ -205,7 +219,7 @@ pending -> transcribing -> summarizing -> ready
     aquele arquivo não tem. Quem decide se ficou pequeno o bastante é o chamador.
   - **Nunca manda MAIS bytes que o original**: reencodar arquivo já pequeno pode inchar.
   - O que ainda passa de 25 MB depois disso vira `failed` com motivo próprio — e o áudio **continua na
-    biblioteca**, tocável e baixável. Fatiar em blocos ficou pra depois.
+    biblioteca**, tocável e baixável.
   - `ffmpeg` está no `Dockerfile` do worker; `FFMPEG_PATH` sobrescreve o binário.
 - **A MESMA chave serve pros dois passos**: `whisper-large-v3` (`audio.transcriptions`, com
   `response_format: 'verbose_json'` — é o que devolve o idioma) e o modelo de chat
@@ -313,7 +327,11 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   é fail-closed — qualquer coisa que não seja exatamente `'admin'` lê como usuário comum, então um
   typo no UPDATE nunca dá privilégio.
 
-- **transcription** — o texto que o modelo ouviu. `Transcription` + VO `TranscriptText`. **Resposta
+- **transcription** — o texto que o modelo ouviu. `Transcription` + VOs `TranscriptText` e
+  `TranscriptSegment` (o trecho com o momento em que foi dito — o `verbose_json` já devolvia isso na
+  MESMA resposta do texto, e a tela usa pra pular o player pra linha clicada). **Trecho torto é
+  DESCARTADO pela entidade, não reprova a transcrição** (mesma regra do bullet vazio no resumo):
+  o texto é o registro, os trechos são um índice pra dentro dele. **Resposta
   vazia NÃO é transcrição** (`EMPTY_TRANSCRIPT`): silêncio, arquivo ilegível ou chamada falha têm
   que virar gravação FALHA que o usuário entende, nunca resumo de nada. A porta
   `SpeechToTextProvider` recebe **caminho absoluto** — o domínio nunca resolve onde fica a pasta de
@@ -324,6 +342,11 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   isso o modelo está transcrevendo, não resumindo. Bullet **vazio é descartado**, não reprovado:
   reprovar o áudio inteiro por uma linha em branco no fim da lista seria absurdo. O **conteúdo é
   congelado na criação** (não existe `edit`); a única coisa que muda depois é o `pdfUrl`.
+  **Perguntar sobre o áudio mora aqui** (`AskAboutTranscript` + porta `TranscriptQuestionAnswerer`):
+  "o que o LLM escreveu sobre essa gravação" é exatamente este contexto — a diferença pro resumo é
+  que ninguém pediu antes, então **nada é gravado**. Roda DENTRO do request (segundos, com a pessoa
+  esperando), ao contrário dos dois passos do pipeline, e o adapter da Groq mora no `apps/backend`,
+  com a lista de fallback duplicada de propósito (driven adapter mora no app que consome a porta).
 - **notification** — caixa de entrada (sininho + tela `/notifications`). `Notification.for(input)`
   é um factory com `switch` sobre uma **união discriminada**, então nenhum caller inventa campo nem
   esquece o motivo de uma falha, e a copy fica numa decisão só em vez de espalhada por dois apps. O
@@ -341,12 +364,13 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 - `user/{me,change-password,logout}` (`GET /user/me` devolve a identidade; `PATCH /user/me` edita o
   nome; **`DELETE /user/me` apaga a conta e TUDO do usuário** — ver "Exclusão de conta (LGPD)")
 - `upload/audios` (POST — só o próprio usuário autenticado; devolve `{ url, mimeType, sizeBytes }`)
-- `recording` (`POST /`, `GET /`, `GET /:id`, `PATCH /:id` [renomear], `DELETE /:id`,
+- `recording` (`POST /`, `GET /`, `GET /search?q=` [título + transcrição + resumo], `GET /:id`, `PATCH /:id` [renomear], `DELETE /:id`,
   `POST /:id/retry`, `GET /:id/audio` [download inteiro], `GET /:id/audio/link` [devolve o link
   assinado do streaming]) e `recording/stream/:id` (GET, **Range**, autenticado por token de
   capacidade na query string — ver "Áudio: streaming por Range")
 - `transcription/recording/:id` (GET)
-- `summary/recording/:id` (GET) e `summary/recording/:id/pdf` (GET, download)
+- `summary/recording/:id` (GET), `summary/recording/:id/pdf` (GET, download) e
+  `summary/recording/:id/ask` (POST — pergunta sobre o áudio, respondida na hora)
 - `notification` (`GET /` [`?limit=`, devolve `{ unreadCount, items }`], `POST /read-all`,
   `POST /:id/read`, `DELETE /:id`, `DELETE /`, `GET /stream` [**SSE**, ver abaixo — é a **única**
   rota autenticada por token na query string, porque `EventSource` não manda header])
