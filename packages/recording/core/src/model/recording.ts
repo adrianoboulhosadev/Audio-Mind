@@ -106,6 +106,25 @@ export class Recording extends AggregateRoot<Recording, RecordingProps> {
     this.touch()
   }
 
+  /**
+   * Takes the name the pipeline suggests — the summary's headline — but ONLY
+   * while the audio still carries the placeholder it was created with.
+   *
+   * Renaming stays the user's (see `rename`): a name someone typed is never
+   * overwritten by a model, however good the suggestion is. This exists because
+   * the alternative is a library of "Áudio sem título" that nobody goes back to
+   * rename, when the summary already knows what the audio was about.
+   */
+  adoptSuggestedTitle(title: string): void {
+    if (!this.title.isPlaceholder) return
+
+    const suggested = title?.trim() ?? ''
+    if (!suggested) return
+
+    this.title = new RecordingTitle(suggested.slice(0, RecordingTitle.MAX_LENGTH))
+    this.touch()
+  }
+
   /** pending -> transcribing. Idempotent for the status it already is, so a
    * re-delivered job does not blow up; any other origin is a real ordering bug. */
   startTranscription(): void {

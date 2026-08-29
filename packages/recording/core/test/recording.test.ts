@@ -141,6 +141,23 @@ describe('Recording', () => {
     )
   })
 
+  it('adopts the summary s headline only while nobody named the audio', () => {
+    const unnamed = build({ title: RecordingTitle.PLACEHOLDER })
+    unnamed.adoptSuggestedTitle('Reunião sobre o contrato')
+    expect(unnamed.title.value).toBe('Reunião sobre o contrato')
+
+    // A name the person typed is theirs — a model never steps on it.
+    const named = build({ title: 'Consulta médica' })
+    named.adoptSuggestedTitle('Reunião sobre o contrato')
+    expect(named.title.value).toBe('Consulta médica')
+  })
+
+  it('an empty suggestion leaves the placeholder alone', () => {
+    const recording = build({ title: RecordingTitle.PLACEHOLDER })
+    recording.adoptSuggestedTitle('   ')
+    expect(recording.title.value).toBe(RecordingTitle.PLACEHOLDER)
+  })
+
   it('rename applies the title rule and touches updatedAt', () => {
     const recording = build()
     recording.rename('  Outro nome  ')

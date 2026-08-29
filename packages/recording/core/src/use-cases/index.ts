@@ -10,3 +10,4 @@ export { default as StartRecordingTranscription } from './start-recording-transc
 export { default as StartRecordingSummarization } from './start-recording-summarization'
 export { default as CompleteRecording } from './complete-recording'
 export { default as FailRecording } from './fail-recording'
+export { default as SuggestRecordingTitle } from './suggest-recording-title'
