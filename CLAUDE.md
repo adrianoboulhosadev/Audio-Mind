@@ -143,6 +143,21 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
   derivado. A **exclusão** é o mesmo padrão, no `RecordingController`: resumo → transcrição →
   gravação → arquivos em disco.
 
+### Exclusão de conta (LGPD)
+
+- **`DELETE /user/me` é ELIMINAÇÃO, não desativação** — direito de eliminação dos dados pessoais
+  (Lei 13.709/2018, art. 18, VI). A tela de perfil lista o que vai embora e só libera o botão depois
+  que a pessoa marca que entendeu; o backend cumpre exatamente o que a tela promete.
+- **A ordem é: derivados primeiro, identidade por ÚLTIMO.** Apagar o usuário antes deixaria toda
+  gravação órfã atrás de um `ownerId` que ninguém resolve; do jeito certo, falhar no meio deixa uma
+  conta que ainda funciona e pode tentar de novo.
+- **O cascade de uma gravação mora no `RecordingEraser`** (app layer), não no controller: as MESMAS
+  etapas na MESMA ordem servem "excluir esse áudio" e "excluir minha conta". Uma segunda cópia da
+  ordem é uma segunda chance de esquecer o PDF no disco.
+- A biblioteca inteira sai **por páginas** de 100 (o teto do lado de leitura): cada passada apaga o
+  que leu, então a próxima volta menor e o laço termina numa página vazia. Nada de inventar uma
+  porta de listagem sem teto só pra isso.
+
 ## O pipeline (assíncrono)
 
 Estados do `Recording`, e cada transição é um **método** que valida a própria precondição:
@@ -196,6 +211,13 @@ pending -> transcribing -> summarizing -> ready
   `response_format: 'verbose_json'` — é o que devolve o idioma) e o modelo de chat
   (`llama-3.3-70b-versatile`, com `response_format: json_object` e `temperature` baixa). Modelos em
   variável de ambiente (`GROQ_MODEL`, `GROQ_TRANSCRIPTION_MODEL`).
+- **O modelo de chat é PREFERÊNCIA, não trava**: a Groq aposenta modelo e libera modelo por conta,
+  então `404 The model ... does not exist or you do not have access to it` transforma **todo** áudio
+  em `failed`, com a causa só no log do worker. O `GroqSummaryGenerator` tenta o modelo configurado
+  e, **só** se a resposta for "esse modelo não / sem acesso", cai pro próximo de
+  `CHAT_MODEL_FALLBACKS` — e **lembra qual funcionou** (o próximo job já começa por ele). Qualquer
+  outra falha é falha DAQUELA chamada e sobe como está: trocar de modelo ali só gastaria cota com o
+  mesmo erro. O resumo grava o modelo que **respondeu**, não o que estava configurado.
 - **Retry só no que é transitório**: 429, 5xx e falha de conexão. 4xx (chave inválida, request
   ruim) não — retentar só atrasa a falha que o usuário precisa ver. Backoff exponencial 5s → 40s.
 - **O mapper é puro e NUNCA inventa conteúdo** (`summary-mapper.ts`): aceita as duas formas que um
@@ -242,10 +264,13 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
   `AuthSession`. JWT access 15m + refresh 7d **stateful** (rotação + detecção de reuso: refresh
   autêntico mas não-atual → apaga a família). VOs: `Email`, `StrongPassword`, `PasswordHash`,
   `DisplayName`. `LoginUser` responde o **mesmo erro genérico** pra e-mail inexistente, senha errada
-  e conta desativada. `DeactivateUser` também derruba **todas as sessões** — uma conta que não pode
-  mais entrar não pode continuar logada em outro dispositivo até o refresh expirar. **Cadastro é
-  aberto** e toda conta nasce comum: registrar **não loga**, o usuário cai no login
-  com a conta criada, então existe um caminho só pra virar sessão.
+  e conta desativada. `DeleteUser` **APAGA a linha** e derruba **todas as sessões** — uma conta que
+  deixou de existir não pode continuar logada em outro dispositivo até o refresh expirar.
+  **Desativar (`active=false`) não é rota**: é `UPDATE users SET active=false` rodado à mão, como
+  promover a admin. O que o produto oferece ao usuário é **exclusão**, não conta desativada com os
+  dados guardados atrás (ver "Exclusão de conta (LGPD)"). **Cadastro é aberto** e toda conta nasce
+  comum: registrar **não loga**, o usuário cai no login com a conta criada, então existe um caminho
+  só pra virar sessão.
 - **recording** — o áudio e o estágio do pipeline. `Recording` (AggregateRoot) + VOs `AudioFile` e
   `RecordingTitle`. `AudioFile` é onde moram os limites que fazem um arquivo ser processável:
   formato aceito pelo modelo (mp3, m4a/mp4, wav, ogg, flac, webm — **com os aliases**, porque
@@ -307,7 +332,8 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 **Nomes de rota em INGLÊS** (kebab-case):
 
 - `auth/{register,login,refresh}`
-- `user/{me,change-password,logout,deactivate}` (`GET /user/me` devolve a identidade; `PATCH` edita o nome)
+- `user/{me,change-password,logout}` (`GET /user/me` devolve a identidade; `PATCH /user/me` edita o
+  nome; **`DELETE /user/me` apaga a conta e TUDO do usuário** — ver "Exclusão de conta (LGPD)")
 - `upload/audios` (POST — só o próprio usuário autenticado; devolve `{ url, mimeType, sizeBytes }`)
 - `recording` (`POST /`, `GET /`, `GET /:id`, `PATCH /:id` [renomear], `DELETE /:id`,
   `POST /:id/retry`, `GET /:id/audio` [stream])
