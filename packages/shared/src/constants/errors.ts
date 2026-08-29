@@ -54,6 +54,10 @@ export const Errors = {
   TOO_MANY_SUMMARY_ITEMS: 'TOO_MANY_SUMMARY_ITEMS',
   // The PDF has not been rendered (yet) for this summary.
   PDF_NOT_AVAILABLE: 'PDF_NOT_AVAILABLE',
+  // Asking something about a recording: the question itself, and the answer.
+  EMPTY_QUESTION: 'EMPTY_QUESTION',
+  QUESTION_TOO_LONG: 'QUESTION_TOO_LONG',
+  EMPTY_ANSWER: 'EMPTY_ANSWER',
 
   // notification
   NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',
