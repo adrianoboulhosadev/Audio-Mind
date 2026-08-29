@@ -8,6 +8,7 @@ import { TranscriptionFacade } from '@transcription/adapters'
 import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
 import { createSpeechToText, createSummaryGenerator, GroqConfig } from './extraction'
+import { startHeartbeat } from './heartbeat'
 import { PdfKitSummaryRenderer } from './pdf/pdfkit-summary-renderer'
 import { LiveUpdates } from './notification/live-updates'
 import { PipelineEventPublisher } from './notification/pipeline-event-publisher'
@@ -94,6 +95,10 @@ function main(): void {
   worker.on('completed', (job) => {
     console.log(`[worker] processed recording ${job.data.recordingId}`)
   })
+
+  // What docker's healthcheck looks at: a queue consumer has no port to answer
+  // on (see heartbeat.ts).
+  startHeartbeat()
 
   console.log(`[worker] up — consuming "${RECORDING_PROCESSING_QUEUE}"`)
 }
