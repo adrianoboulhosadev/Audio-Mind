@@ -160,3 +160,31 @@ model Task {
   @@index([ownerId, doneAt])
   @@map("tasks")
 }
+
+// --- sharing -------------------------------------------------------------------
+
+// A link that lets somebody WITHOUT an account read one recording's summary.
+//
+// `token` is the secret in the URL and the only authorization the public page
+// has — unique, and the column the public read looks up by. `expires_at` is NOT
+// nullable on purpose: there is no eternal link, so forgetting about one means
+// it stops working instead of staying open forever. A revoked link keeps its
+// row (the owner has to be able to see that it existed and was cut off); only
+// deleting the RECORDING deletes its links.
+model ShareLink {
+  id                 String    @id @default(uuid())
+  ownerId            String    @map("owner_id")
+  recordingId        String    @map("recording_id")
+  token              String    @unique
+  includesTranscript Boolean   @default(false) @map("includes_transcript")
+  includesAudio      Boolean   @default(false) @map("includes_audio")
+  expiresAt          DateTime  @map("expires_at")
+  revokedAt          DateTime? @map("revoked_at")
+  viewCount          Int       @default(0) @map("view_count")
+  lastViewedAt       DateTime? @map("last_viewed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([ownerId, createdAt])
+  @@index([recordingId])
+  @@map("share_links")
+}
