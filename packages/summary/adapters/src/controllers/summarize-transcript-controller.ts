@@ -10,6 +10,7 @@ export default class SummarizeTranscriptController {
     recordingId: string
     recordingTitle: string
     transcript: string
+    kind?: string
     language?: string
   }): Promise<void> {
     await new SummarizeTranscript(this.repository, this.generator).execute(input)

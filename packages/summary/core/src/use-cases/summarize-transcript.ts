@@ -8,6 +8,8 @@ interface Input {
    * (the worker) — summary imports neither recording nor transcription. */
   recordingTitle: string
   transcript: string
+  /** Which template the model should follow. Opaque here (see the port). */
+  kind?: string
   language?: string
 }
 
@@ -26,8 +28,8 @@ export default class SummarizeTranscript implements UseCase<Input, void> {
     private readonly generator: SummaryGenerator,
   ) {}
 
-  async execute({ recordingId, recordingTitle, transcript, language }: Input): Promise<void> {
-    const generated = await this.generator.generate({ recordingTitle, transcript, language })
+  async execute({ recordingId, recordingTitle, transcript, kind, language }: Input): Promise<void> {
+    const generated = await this.generator.generate({ recordingTitle, transcript, kind, language })
 
     const summary = new Summary({
       recordingId,

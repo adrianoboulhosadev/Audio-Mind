@@ -37,6 +37,7 @@ export default class SummaryFacade {
     recordingId: string
     recordingTitle: string
     transcript: string
+    kind?: string
     language?: string
   }): Promise<void> {
     await new SummarizeTranscriptController(this.repository!, this.generator!).execute(input)

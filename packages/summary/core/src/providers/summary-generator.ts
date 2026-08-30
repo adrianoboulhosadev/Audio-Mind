@@ -3,6 +3,13 @@ export interface SummaryGeneratorInput {
    * bare transcript often does not state. */
   recordingTitle: string
   transcript: string
+  /**
+   * What KIND of audio it is, as the recording context spells it ('meeting',
+   * 'class'…). This context does NOT interpret it — it travels as opaque data
+   * to the adapter, which is where the per-kind instructions live, exactly like
+   * the model id and the retry policy. Absent means the generic template.
+   */
+  kind?: string
   /** Language the summary must be WRITTEN in (not the audio's). */
   language?: string
 }
