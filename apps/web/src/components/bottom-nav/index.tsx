@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useActiveNav } from '@/hooks/use-active-nav'
-import { NAV_ITEMS } from '@/components/sidebar/data/nav-items'
+import { useNavItems } from '@/hooks/use-nav-items'
 
 /**
  * The phone's navigation: a fixed bar at the bottom, every screen one tap away.
@@ -17,6 +17,7 @@ import { NAV_ITEMS } from '@/components/sidebar/data/nav-items'
  */
 export function BottomNav() {
   const isActive = useActiveNav()
+  const items = useNavItems()
 
   return (
     <nav
@@ -24,7 +25,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >
       <ul className="flex">
-        {NAV_ITEMS.map(({ href, shortLabel, label, Icon }) => (
+        {items.map(({ href, shortLabel, label, Icon }) => (
           <li key={href} className="flex-1">
             <Link
               href={href}

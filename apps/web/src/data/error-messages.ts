@@ -17,6 +17,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_PASSWORD: 'A senha atual está incorreta.',
   PASSWORD_SAME_AS_PREVIOUS: 'A nova senha precisa ser diferente da atual.',
   INVALID_SESSION: 'Sua sessão expirou. Entre de novo.',
+  ADMIN_ONLY: 'Essa área é só pra administradores.',
+  CANNOT_CHANGE_OWN_ACCESS: 'Você não pode mudar o próprio acesso.',
+  INVALID_USER_ROLE: 'Esse papel de usuário não existe.',
   REQUIRED_FIELD: 'Preencha todos os campos.',
 
   // recording

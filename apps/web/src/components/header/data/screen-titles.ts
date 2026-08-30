@@ -5,6 +5,7 @@ export const SCREEN_TITLES: Record<string, string> = {
   '/markers': 'Marcadores',
   '/notifications': 'Notificações',
   '/profile': 'Perfil',
+  '/admin': 'Administração',
 }
 
 export const DEFAULT_SCREEN_TITLE = 'Audio Mind'

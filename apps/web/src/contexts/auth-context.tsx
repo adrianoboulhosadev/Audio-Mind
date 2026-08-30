@@ -6,7 +6,10 @@ import { api, refreshAccessToken, setAccessToken } from '@/lib/api'
 
 // Reuses the DTO from adapters — the front never redeclares a contract the
 // context package already owns.
-type AuthenticatedUser = Pick<UserDTO, 'id' | 'email' | 'name'>
+// `role` is here because the navigation and the /admin guard both read it —
+// /user/me already answers with it, so the front reads the identity it was
+// given instead of asking a second route "sou admin?".
+type AuthenticatedUser = Pick<UserDTO, 'id' | 'email' | 'name' | 'role'>
 
 interface Auth {
   user: AuthenticatedUser | null

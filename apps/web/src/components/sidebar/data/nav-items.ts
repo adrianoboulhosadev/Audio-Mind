@@ -1,4 +1,12 @@
-import { Bell, Bookmark, FileAudio2, ListTodo, User, type LucideIcon } from 'lucide-react'
+import {
+  Bell,
+  Bookmark,
+  FileAudio2,
+  ListTodo,
+  Shield,
+  User,
+  type LucideIcon,
+} from 'lucide-react'
 
 /**
  * The screens, in one list. Both navigations read it — the desktop column and
@@ -13,6 +21,9 @@ export interface NavItem {
   label: string
   shortLabel: string
   Icon: LucideIcon
+  /** Only rendered for an administrator. Hiding it is courtesy, not security —
+   * what actually refuses a non-admin is the guard on the backend. */
+  adminOnly?: boolean
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -21,4 +32,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/markers', label: 'Marcadores', shortLabel: 'Marcas', Icon: Bookmark },
   { href: '/notifications', label: 'Notificações', shortLabel: 'Avisos', Icon: Bell },
   { href: '/profile', label: 'Perfil', shortLabel: 'Perfil', Icon: User },
+  { href: '/admin', label: 'Admin', shortLabel: 'Admin', Icon: Shield, adminOnly: true },
 ]

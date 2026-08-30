@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { AudioLines } from 'lucide-react'
 import { useActiveNav } from '@/hooks/use-active-nav'
-import { NAV_ITEMS } from './data/nav-items'
+import { useNavItems } from '@/hooks/use-nav-items'
 
 /**
  * The desktop navigation, and ONLY the desktop navigation: below `lg` it is not
@@ -13,6 +13,7 @@ import { NAV_ITEMS } from './data/nav-items'
  */
 export function Sidebar() {
   const isActive = useActiveNav()
+  const items = useNavItems()
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-panel lg:flex">
@@ -24,7 +25,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {NAV_ITEMS.map(({ href, label, Icon }) => (
+        {items.map(({ href, label, Icon }) => (
           <Link
             key={href}
             href={href}
