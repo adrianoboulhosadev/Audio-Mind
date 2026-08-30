@@ -18,6 +18,12 @@ export const Errors = {
   INVALID_PASSWORD: 'INVALID_PASSWORD',
   PASSWORD_SAME_AS_PREVIOUS: 'PASSWORD_SAME_AS_PREVIOUS',
   INVALID_SESSION: 'INVALID_SESSION',
+  // Administration: an admin may not change their OWN role or status. Without
+  // it, the one person holding the keys can lock themselves out with a click.
+  CANNOT_CHANGE_OWN_ACCESS: 'CANNOT_CHANGE_OWN_ACCESS',
+  INVALID_USER_ROLE: 'INVALID_USER_ROLE',
+  // The caller is authenticated but is not an administrator.
+  ADMIN_ONLY: 'ADMIN_ONLY',
 
   // recording — the audio the user recorded or uploaded
   // Also answered when the recording belongs to SOMEONE ELSE (anti-IDOR): a
