@@ -37,6 +37,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   EMPTY_SUMMARY: 'O modelo não conseguiu resumir esse áudio.',
   PDF_NOT_AVAILABLE: 'O PDF desse resumo ainda não foi gerado.',
 
+  // annotation
+  ANNOTATION_NOT_FOUND: 'Marcador não encontrado.',
+  INVALID_ANNOTATION_TIME: 'Esse momento não existe nesse áudio.',
+  ANNOTATION_NOTE_TOO_LONG: 'A anotação é longa demais.',
+
   // sharing
   SHARE_LINK_NOT_FOUND: 'Esse link de compartilhamento não existe.',
   SHARE_LINK_EXPIRED: 'Esse link expirou.',

@@ -15,6 +15,7 @@ import { RECORDING_KIND_HINTS, RECORDING_KIND_LABELS } from '@/data/recording-ki
 import { formatBytes, formatDateTime, formatDuration } from '@/lib/format'
 import { AskPanel } from './components/ask-panel'
 import { AudioPlayer } from './components/audio-player'
+import { MarkersPanel } from './components/markers-panel'
 import { SharePanel } from './components/share-panel'
 import { SummaryPanel } from './components/summary-panel'
 import { TranscriptPanel } from './components/transcript-panel'
@@ -162,6 +163,10 @@ export default function RecordingDetailPage() {
           </p>
         </section>
       ) : null}
+
+      {/* Independe do pipeline: dá pra marcar um momento de um áudio que ainda
+          está sendo transcrito — a âncora é o TEMPO, e o tempo já existe. */}
+      <MarkersPanel recordingId={recording.id} player={player} />
 
       {summary ? <SummaryPanel summary={summary} recordingId={recording.id} /> : null}
       {/* Só faz sentido com um resumo pronto: o link abre o resumo, e sem ele a

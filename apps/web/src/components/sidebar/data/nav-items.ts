@@ -1,4 +1,4 @@
-import { Bell, FileAudio2, ListTodo, User, type LucideIcon } from 'lucide-react'
+import { Bell, Bookmark, FileAudio2, ListTodo, User, type LucideIcon } from 'lucide-react'
 
 /**
  * The screens, in one list. Both navigations read it — the desktop column and
@@ -18,6 +18,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: '/recordings', label: 'Meus áudios', shortLabel: 'Áudios', Icon: FileAudio2 },
   { href: '/tasks', label: 'Tarefas', shortLabel: 'Tarefas', Icon: ListTodo },
+  { href: '/markers', label: 'Marcadores', shortLabel: 'Marcas', Icon: Bookmark },
   { href: '/notifications', label: 'Notificações', shortLabel: 'Avisos', Icon: Bell },
   { href: '/profile', label: 'Perfil', shortLabel: 'Perfil', Icon: User },
 ]
