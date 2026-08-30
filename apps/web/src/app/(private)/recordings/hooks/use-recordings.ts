@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import type { RecordingDTO, RecordingSource, UploadRecordingInput } from '@recording/adapters'
+import type {
+  RecordingDTO,
+  RecordingKind,
+  RecordingSource,
+  UploadRecordingInput,
+} from '@recording/adapters'
 import { api, errorMessage } from '@/lib/api'
 import { readAudioDuration } from '@/lib/audio-duration'
 
@@ -31,6 +36,7 @@ const SEARCH_DEBOUNCE_MS = 300
 
 interface UploadArgs {
   title: string
+  kind: RecordingKind
   source: RecordingSource
   blob: Blob
   /** Known already when the audio was RECORDED here (we timed it); measured from
@@ -84,7 +90,7 @@ export function useRecordings() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: RECORDINGS_KEY })
 
   const upload = useMutation({
-    mutationFn: async ({ title, source, blob, durationSeconds, filename }: UploadArgs) => {
+    mutationFn: async ({ title, kind, source, blob, durationSeconds, filename }: UploadArgs) => {
       const seconds = durationSeconds ?? (await readAudioDuration(blob))
 
       const form = new FormData()
@@ -97,6 +103,7 @@ export function useRecordings() {
 
       const input: UploadRecordingInput = {
         title,
+        kind,
         source,
         audioUrl: uploaded.url,
         mimeType: uploaded.mimeType,

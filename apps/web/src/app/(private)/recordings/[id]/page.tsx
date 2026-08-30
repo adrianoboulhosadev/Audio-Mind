@@ -3,12 +3,15 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
+import type { RecordingKind } from '@recording/adapters'
 import { Button } from '@/components/button'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field } from '@/components/field'
 import { IconButton } from '@/components/icon-button'
 import { Loading } from '@/components/loading'
+import { SelectField } from '@/components/select-field'
 import { StatusBadge } from '@/components/status-badge'
+import { RECORDING_KIND_HINTS, RECORDING_KIND_LABELS } from '@/data/recording-kinds'
 import { formatBytes, formatDateTime, formatDuration } from '@/lib/format'
 import { AskPanel } from './components/ask-panel'
 import { AudioPlayer } from './components/audio-player'
@@ -30,6 +33,8 @@ export default function RecordingDetailPage() {
     setTitle,
     rename,
     renaming,
+    changeKind,
+    changingKind,
     retry,
     retrying,
     confirmingReprocess,
@@ -95,6 +100,24 @@ export default function RecordingDetailPage() {
           >
             Salvar
           </Button>
+        </div>
+
+        {/* Editável depois do upload, ao contrário de todo o resto do arquivo:
+            errar o tipo é fácil, e o preço de ficar preso a ele é um resumo com
+            o formato errado. Só vale da PRÓXIMA execução em diante — daí o botão
+            de reprocessar logo abaixo. */}
+        <div className="mt-4">
+          <SelectField
+            label="Tipo de áudio"
+            value={recording.kind}
+            disabled={changingKind}
+            onChange={(event) => changeKind(event.target.value as RecordingKind)}
+            options={Object.entries(RECORDING_KIND_LABELS).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+            hint={RECORDING_KIND_HINTS[recording.kind]}
+          />
         </div>
 
         {/* Only for a recording that FINISHED: failed has its own button below,

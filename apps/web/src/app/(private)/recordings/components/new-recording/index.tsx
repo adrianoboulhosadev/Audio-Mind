@@ -1,15 +1,19 @@
 'use client'
 
+import type { RecordingKind } from '@recording/adapters'
 import { AudioRecorder } from '@/components/audio-recorder'
 import { Button } from '@/components/button'
 import { Field } from '@/components/field'
+import { SelectField } from '@/components/select-field'
 import { FileUpload } from '@/components/file-upload'
+import { RECORDING_KIND_HINTS, RECORDING_KIND_LABELS } from '@/data/recording-kinds'
 import { formatBytes } from '@/lib/format'
 import { useNewRecording } from './hooks/use-new-recording'
 
 interface NewRecordingProps {
   upload: (args: {
     title: string
+    kind: RecordingKind
     source: 'record' | 'upload'
     blob: Blob
     durationSeconds?: number
@@ -21,8 +25,20 @@ interface NewRecordingProps {
 /** Recording and uploading are the same act with two front doors — one panel,
  * two tabs, and the same "title + confirm" ending. */
 export function NewRecording({ upload, uploading }: NewRecordingProps) {
-  const { mode, switchMode, title, setTitle, audio, allowance, onRecorded, onFilePicked, submit, reset } =
-    useNewRecording({ upload })
+  const {
+    mode,
+    switchMode,
+    title,
+    setTitle,
+    kind,
+    setKind,
+    audio,
+    allowance,
+    onRecorded,
+    onFilePicked,
+    submit,
+    reset,
+  } = useNewRecording({ upload })
 
   return (
     <section className="rounded-2xl border border-line2 bg-panel p-5 shadow-card">
@@ -73,6 +89,19 @@ export function NewRecording({ upload, uploading }: NewRecordingProps) {
             placeholder="Reunião de segunda, consulta, aula…"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
+          />
+          {/* O tipo muda o PROMPT do resumo, não a aparência da tela: uma aula
+              devolve conceitos e o que estudar, uma consulta devolve medicação e
+              retorno. Daí a dica embaixo — sem ela "Aula" é só uma palavra. */}
+          <SelectField
+            label="Tipo de áudio"
+            value={kind}
+            onChange={(event) => setKind(event.target.value as RecordingKind)}
+            options={Object.entries(RECORDING_KIND_LABELS).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+            hint={RECORDING_KIND_HINTS[kind]}
           />
           <div className="flex flex-wrap gap-2">
             <Button onClick={submit} disabled={uploading}>

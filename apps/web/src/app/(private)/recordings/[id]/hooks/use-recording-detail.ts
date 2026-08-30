@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import type { RecordingDTO } from '@recording/adapters'
+import type { RecordingDTO, RecordingKind } from '@recording/adapters'
 import type { SummaryDTO } from '@summary/adapters'
 import type { TranscriptionDTO } from '@transcription/adapters'
 import { api, errorMessage, isNotFound } from '@/lib/api'
@@ -109,6 +109,18 @@ export function useRecordingDetail(recordingId: string) {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: RECORDINGS_KEY })
 
+  // Trocar o tipo muda o que a PRÓXIMA execução produz, nunca a que já rodou —
+  // por isso a tela responde oferecendo o reprocessamento em vez de fingir que o
+  // resumo na tela mudou.
+  const changeKind = useMutation({
+    mutationFn: (kind: RecordingKind) => api.patch(`/recording/${recordingId}/kind`, { kind }),
+    onSuccess: () => {
+      toast.success('Tipo atualizado. Processe de novo pra o resumo seguir esse formato.')
+      invalidate()
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
+
   const rename = useMutation({
     mutationFn: (newTitle: string) => api.patch(`/recording/${recordingId}`, { title: newTitle }),
     onSuccess: () => {
@@ -150,6 +162,8 @@ export function useRecordingDetail(recordingId: string) {
     setTitle,
     rename: () => rename.mutate(title.trim()),
     renaming: rename.isPending,
+    changeKind: (kind: RecordingKind) => changeKind.mutate(kind),
+    changingKind: changeKind.isPending,
     retry: () => retry.mutate(),
     retrying: retry.isPending,
     confirmingReprocess,

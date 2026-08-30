@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { RecordingTitle, type RecordingSource } from '@recording/adapters'
+import { RecordingTitle, type RecordingKind, type RecordingSource } from '@recording/adapters'
 import type { RecordedAudio } from '@/components/audio-recorder/hooks/use-audio-recorder'
 import { formatBytes } from '@/lib/format'
 import { useUploadAllowance } from './use-upload-allowance'
@@ -18,6 +18,7 @@ interface PickedAudio {
 interface UseNewRecordingArgs {
   upload: (args: {
     title: string
+    kind: RecordingKind
     source: RecordingSource
     blob: Blob
     durationSeconds?: number
@@ -38,6 +39,9 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
   const allowance = useUploadAllowance()
   const [mode, setMode] = useState<RecordingSource>('record')
   const [title, setTitle] = useState('')
+  // 'other' is the generic template — the same summary the app produced before
+  // types existed, so leaving the picker alone changes nothing.
+  const [kind, setKind] = useState<RecordingKind>('other')
   const [audio, setAudio] = useState<PickedAudio | null>(null)
 
   const onRecorded = useCallback((recorded: RecordedAudio) => {
@@ -77,13 +81,14 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
       // the domain reads to know the name is still up for grabs — and what the
       // pipeline replaces with the summary's headline.
       title: title.trim() || RecordingTitle.PLACEHOLDER,
+      kind,
       source: audio.source,
       blob: audio.blob,
       durationSeconds: audio.durationSeconds,
       filename: audio.filename,
     })
     reset()
-  }, [audio, title, upload, reset])
+  }, [audio, title, kind, upload, reset])
 
   const switchMode = useCallback((next: RecordingSource) => {
     setMode(next)
@@ -95,6 +100,8 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
     switchMode,
     title,
     setTitle,
+    kind,
+    setKind,
     audio,
     allowance,
     onRecorded,
