@@ -37,6 +37,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   EMPTY_SUMMARY: 'O modelo não conseguiu resumir esse áudio.',
   PDF_NOT_AVAILABLE: 'O PDF desse resumo ainda não foi gerado.',
 
+  // sharing
+  SHARE_LINK_NOT_FOUND: 'Esse link de compartilhamento não existe.',
+  SHARE_LINK_EXPIRED: 'Esse link expirou.',
+  SHARE_LINK_REVOKED: 'Esse link foi desativado.',
+  INVALID_SHARE_TOKEN: 'Endereço de compartilhamento inválido.',
+
   // task
   TASK_NOT_FOUND: 'Tarefa não encontrada.',
 

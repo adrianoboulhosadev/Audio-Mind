@@ -15,6 +15,7 @@ import { RECORDING_KIND_HINTS, RECORDING_KIND_LABELS } from '@/data/recording-ki
 import { formatBytes, formatDateTime, formatDuration } from '@/lib/format'
 import { AskPanel } from './components/ask-panel'
 import { AudioPlayer } from './components/audio-player'
+import { SharePanel } from './components/share-panel'
 import { SummaryPanel } from './components/summary-panel'
 import { TranscriptPanel } from './components/transcript-panel'
 import { useRecordingDetail } from './hooks/use-recording-detail'
@@ -163,6 +164,9 @@ export default function RecordingDetailPage() {
       ) : null}
 
       {summary ? <SummaryPanel summary={summary} recordingId={recording.id} /> : null}
+      {/* Só faz sentido com um resumo pronto: o link abre o resumo, e sem ele a
+          página compartilhada não teria o que mostrar. */}
+      {summary ? <SharePanel recordingId={recording.id} /> : null}
       {/* Needs a transcript, not a summary: the question is answered from what
           was SAID. */}
       {transcription ? <AskPanel recordingId={recording.id} /> : null}

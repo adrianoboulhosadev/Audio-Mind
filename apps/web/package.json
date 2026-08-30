@@ -13,6 +13,7 @@
     "@auth/adapters": "*",
     "@notification/adapters": "*",
     "@recording/adapters": "*",
+    "@sharing/adapters": "*",
     "@summary/adapters": "*",
     "@tanstack/react-query": "^5.62.0",
     "@task/adapters": "*",

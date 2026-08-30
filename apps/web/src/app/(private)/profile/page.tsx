@@ -97,6 +97,7 @@ export default function ProfilePage() {
           <li>seus áudios (os gravados aqui e os enviados por você);</li>
           <li>as transcrições, os resumos e os PDFs gerados a partir deles;</li>
           <li>as tarefas tiradas desses resumos, feitas ou pendentes;</li>
+          <li>os links de compartilhamento que você criou — todos param de abrir na hora;</li>
           <li>seus avisos da caixa de entrada;</li>
           <li>seu cadastro — nome, e-mail e senha — e todas as sessões abertas.</li>
         </ul>

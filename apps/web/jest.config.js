@@ -15,6 +15,8 @@ module.exports = {
     '^shared$': '<rootDir>/../../packages/shared/src/index.ts',
     '^@recording/adapters$': '<rootDir>/../../packages/recording/adapters/src/index.ts',
     '^@recording/core$': '<rootDir>/../../packages/recording/core/src/index.ts',
+    '^@sharing/adapters$': '<rootDir>/../../packages/sharing/adapters/src/index.ts',
+    '^@sharing/core$': '<rootDir>/../../packages/sharing/core/src/index.ts',
     '^@task/adapters$': '<rootDir>/../../packages/task/adapters/src/index.ts',
     '^@task/core$': '<rootDir>/../../packages/task/core/src/index.ts',
     '^@auth/adapters$': '<rootDir>/../../packages/auth/adapters/src/index.ts',
