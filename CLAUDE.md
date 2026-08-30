@@ -316,14 +316,32 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
   formato aceito pelo modelo (mp3, m4a/mp4, wav, ogg, flac, webm — **com os aliases**, porque
   navegador chama o mesmo container de nomes diferentes) e os **tetos de tamanho/duração**. Duração
   **zero é o navegador falhando na metadata**, não áudio curto — por isso é recusada. `source` (`record`/`upload`) é só o que o usuário fez; o pipeline não ramifica.
-  Renomear é a **única** coisa editável depois do upload — com uma exceção que não é edição do
-  usuário: `RecordingTitle.PLACEHOLDER` ("Áudio sem título") é a marca de que **ninguém nomeou** a
+  Renomear e **trocar o tipo** são as únicas coisas editáveis depois do upload — o resto é o que
+  foi de fato gravado. Renomear tem uma exceção que não é edição do usuário: `RecordingTitle.PLACEHOLDER` ("Áudio sem título") é a marca de que **ninguém nomeou** a
   gravação, e o fim do pipeline oferece a headline do resumo pra ela (`adoptSuggestedTitle`). Título
   que a pessoa digitou nenhum modelo pisa em cima. O placeholder mora no VO, não no front, porque é
   regra e não label. `GetRecordingForProcessingQuery` é a
   leitura do SISTEMA (sem dono, porque um job de fila não tem chamador autenticado) e é um use case
   **separado** de propósito: um `ownerId?` opcional está a um argumento esquecido de virar leitura
   sem guarda numa rota HTTP.
+
+### Tipos de áudio (templates de resumo)
+
+- **`RecordingKind`** (`meeting`, `class`, `medical`, `interview`, `note`, `other`) é união +
+  `toRecordingKind` **fail-closed**, como `UserRole` e `RecordingSource` — não é classe porque não
+  carrega regra além de "seja um destes". Coluna `kind` com default `'other'`, então **toda linha
+  que já existia continua produzindo exatamente o resumo de antes**.
+- **O PROMPT de cada tipo mora no adapter do worker** (`summary-prompts.ts`), não no `summary/core`:
+  prompt é infraestrutura, igual ao id do modelo e à política de retry. O `kind` atravessa a porta
+  como **string opaca** — o contexto `summary` não interpreta.
+- **O FORMATO do JSON é o mesmo pra todos os tipos** (headline/overview/topics/action_items); o que
+  muda são as INSTRUÇÕES do que colocar em cada campo. Deixar as seções polimórficas custaria uma
+  variante no `Summary`, no DTO, no PDF e na tela — por um ganho que o usuário não vê. O que muda a
+  qualidade da resposta é a instrução.
+- **`changeKind` é editável depois do upload** e vale só da PRÓXIMA execução em diante (a que está
+  rodando já leu o tipo com que começou). A tela diz isso e oferece o botão de reprocessar, que já
+  existe — o domínio recusar a edição só faria a pessoa ter que pedir de novo depois.
+- Rota própria (`PATCH /recording/:id/kind`), não um campo do renomear: são dois comandos.
 
 ### Limites de upload por papel (TRAVADO)
 
@@ -401,7 +419,8 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 - `user/{me,change-password,logout}` (`GET /user/me` devolve a identidade; `PATCH /user/me` edita o
   nome; **`DELETE /user/me` apaga a conta e TUDO do usuário** — ver "Exclusão de conta (LGPD)")
 - `upload/audios` (POST — só o próprio usuário autenticado; devolve `{ url, mimeType, sizeBytes }`)
-- `recording` (`POST /`, `GET /`, `GET /search?q=` [título + transcrição + resumo], `GET /:id`, `PATCH /:id` [renomear], `DELETE /:id`,
+- `recording` (`POST /`, `GET /`, `GET /search?q=` [título + transcrição + resumo], `GET /:id`,
+  `PATCH /:id` [renomear], `PATCH /:id/kind` [tipo do áudio], `DELETE /:id`,
   `POST /:id/retry`, `GET /:id/audio` [download inteiro], `GET /:id/audio/link` [devolve o link
   assinado do streaming]) e `recording/stream/:id` (GET, **Range**, autenticado por token de
   capacidade na query string — ver "Áudio: streaming por Range")
