@@ -53,6 +53,12 @@ model Recording {
   id              String   @id @default(uuid())
   ownerId         String   @map("owner_id")
   title           String
+  // What kind of audio it is ('meeting' | 'class' | 'medical' | 'interview' |
+  // 'note' | 'other'), which picks the summary TEMPLATE in the worker. A plain
+  // string and not an enum, for the same reason `role` is: the domain reads it
+  // fail-closed, so anything unknown is the generic template and no migration is
+  // needed to try another kind out.
+  kind            String   @default("other")
   source          String
   audioUrl        String   @map("audio_url")
   mimeType        String   @map("mime_type")
