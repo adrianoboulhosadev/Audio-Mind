@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common'
 import { unlink } from 'fs/promises'
 import { RecordingFacade } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
+import { AnnotationFacade } from '@annotation/adapters'
 import { ShareFacade } from '@sharing/adapters'
 import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { resolveUploadPath } from '../upload/uploads.config'
 import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
 import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
+import { PrismaAnnotationRepository } from '../annotation/prisma-annotation-repository'
 import { PrismaShareLinkRepository } from '../sharing/prisma-share-link-repository'
 import { PrismaTaskRepository } from '../task/prisma-task-repository'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
@@ -33,6 +35,7 @@ export class RecordingEraser {
     private readonly summaryRepository: PrismaSummaryRepository,
     private readonly taskRepository: PrismaTaskRepository,
     private readonly shareLinkRepository: PrismaShareLinkRepository,
+    private readonly annotationRepository: PrismaAnnotationRepository,
   ) {}
 
   /**
@@ -51,6 +54,8 @@ export class RecordingEraser {
     // moment, and a live public URL pointing at it is the one leftover that
     // would still answer.
     await new ShareFacade(this.shareLinkRepository).deleteRecordingShareLinks(recordingId)
+
+    await new AnnotationFacade(this.annotationRepository).deleteRecordingAnnotations(recordingId)
 
     // The tasks go before the summary they came out of, for the same reason
     // everything else here is ordered: what is derived leaves first, so a

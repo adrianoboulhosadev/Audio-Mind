@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { AnnotationModule } from './annotation/annotation.module'
 import { AuthModule } from './auth/auth.module'
 import { DbModule } from './db/db.module'
 import { HealthModule } from './health/health.module'
@@ -24,6 +25,7 @@ import { UserModule } from './user/user.module'
     TranscriptionModule,
     SummaryModule,
     SharingModule,
+    AnnotationModule,
     TaskModule,
     NotificationModule,
   ],

@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { AnnotationStoreModule } from '../annotation/annotation-store.module'
 import { AuthModule } from '../auth/auth.module'
 import { AuthMiddleware } from '../auth/auth.middleware'
 import { DbModule } from '../db/db.module'
@@ -15,7 +16,14 @@ import { RecordingEraser } from './recording-eraser'
 import { RecordingStreamController } from './recording-stream.controller'
 
 @Module({
-  imports: [DbModule, AuthModule, NotificationStoreModule, TaskStoreModule, ShareStoreModule],
+  imports: [
+    DbModule,
+    AuthModule,
+    NotificationStoreModule,
+    TaskStoreModule,
+    ShareStoreModule,
+    AnnotationStoreModule,
+  ],
   controllers: [RecordingController, RecordingStreamController],
   providers: [
     PrismaRecordingRepository,
