@@ -61,6 +61,10 @@ export async function processRecording(
       recordingId,
       recordingTitle: recording.title,
       transcript: transcription.text,
+      // What kind of audio it is picks the summary TEMPLATE. It travels as
+      // plain data: the summary context does not interpret it, the Groq adapter
+      // does (see summary-prompts.ts).
+      kind: recording.kind,
       language: summaryLanguage,
     })
 

@@ -20,6 +20,7 @@ function setup(
   options: {
     status?: string
     title?: string
+    kind?: 'meeting' | 'class' | 'medical' | 'interview' | 'note' | 'other'
     speechToText?: FakeSpeechToText
     generator?: FakeSummaryGenerator
   } = {},
@@ -29,6 +30,7 @@ function setup(
     id: RECORDING_ID,
     ownerId: 'owner-1',
     title: options.title ?? 'Daily do time',
+    kind: options.kind ?? 'other',
     source: 'upload',
     audioUrl: '/uploads/audios/abc.mp3',
     mimeType: 'audio/mpeg',

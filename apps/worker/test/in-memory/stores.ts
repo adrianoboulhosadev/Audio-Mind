@@ -57,6 +57,7 @@ export class RecordingStore implements RecordingRepository, RecordingQueryReposi
       id: recording.id.value,
       ownerId: recording.ownerId,
       title: recording.title.value,
+      kind: recording.kind,
       source: recording.source,
       audioUrl: recording.audio.url,
       mimeType: recording.audio.mimeType,

@@ -9,8 +9,20 @@ import {
   isModelUnavailable,
 } from './groq-llm'
 import { LlmSummaryRecord, toGeneratedSummary } from './summary-mapper'
+import { templateFor } from './summary-prompts'
 
-const INSTRUCTIONS = `### MISSÃO: RESUMIR A TRANSCRIÇÃO DE UM ÁUDIO EM JSON
+/**
+ * The rules that hold for EVERY kind of audio. What changes per kind is what
+ * goes in "topics" and "action_items" (see summary-prompts.ts) — the JSON shape
+ * is the same for all of them, so the entity, the PDF and the screen stay one
+ * thing instead of one per kind.
+ */
+function instructionsFor(kind?: string): string {
+  const template = templateFor(kind)
+
+  return `### MISSÃO: RESUMIR A TRANSCRIÇÃO DE UM ÁUDIO EM JSON
+
+${template.context}
 
 ### REGRAS OBRIGATÓRIAS:
 1. Escreva SEMPRE em português do Brasil, mesmo que o áudio esteja em outro idioma.
@@ -19,10 +31,10 @@ const INSTRUCTIONS = `### MISSÃO: RESUMIR A TRANSCRIÇÃO DE UM ÁUDIO EM JSON
 3. "headline": um título curto (no máximo 10 palavras) que diga do que é o áudio.
 4. "overview": de 1 a 3 parágrafos em prosa contando o que foi dito, na ordem em
    que foi dito. É a parte que substitui ouvir o áudio inteiro.
-5. "topics": os pontos principais, no máximo 8 itens, uma frase curta cada.
-6. "action_items": só o que ficou combinado de FAZER (tarefa, decisão, prazo),
-   no máximo 8 itens. Se ninguém combinou nada, devolva uma lista vazia [].
-   NÃO transforme um assunto qualquer em tarefa só pra preencher.
+5. "topics": ${template.topics}, no máximo 8 itens, uma frase curta cada.
+6. "action_items": ${template.actionItems}, no máximo 8 itens. Se não houver nada
+   disso, devolva uma lista vazia []. NÃO transforme um assunto qualquer em
+   tarefa só pra preencher.
 7. Nada de markdown dentro dos textos (sem **, sem #, sem bullets).
 
 ### FORMATO (devolva SOMENTE o JSON, sem markdown em volta):
@@ -32,9 +44,10 @@ const INSTRUCTIONS = `### MISSÃO: RESUMIR A TRANSCRIÇÃO DE UM ÁUDIO EM JSON
   "topics": ["string"],
   "action_items": ["string"]
 }`
+}
 
 function buildPrompt(input: SummaryGeneratorInput, characterLimit: number): string {
-  return `${INSTRUCTIONS}
+  return `${instructionsFor(input.kind)}
 
 --- TÍTULO DADO PELO USUÁRIO ---
 ${input.recordingTitle}
