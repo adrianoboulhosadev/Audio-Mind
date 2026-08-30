@@ -312,9 +312,11 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
   `DisplayName`. `LoginUser` responde o **mesmo erro genérico** pra e-mail inexistente, senha errada
   e conta desativada. `DeleteUser` **APAGA a linha** e derruba **todas as sessões** — uma conta que
   deixou de existir não pode continuar logada em outro dispositivo até o refresh expirar.
-  **Desativar (`active=false`) não é rota**: é `UPDATE users SET active=false` rodado à mão, como
-  promover a admin. O que o produto oferece ao usuário é **exclusão**, não conta desativada com os
-  dados guardados atrás (ver "Exclusão de conta (LGPD)"). **Cadastro é aberto** e toda conta nasce
+  **Desativar (`active=false`) é coisa de ADMIN sobre OUTRA pessoa** (`PATCH /admin/users/:id`), nunca
+  o que o produto oferece ao usuário sobre si — pra si, o que existe é **exclusão** (ver "Exclusão de
+  conta (LGPD)"). Os dois caminhos são separados de propósito: desativar guarda tudo e só fecha a
+  porta; excluir apaga. Desativar **derruba todas as sessões**, senão a conta segue viva em cada
+  aparelho já logado até o refresh expirar — exatamente a janela que o admin estava fechando. **Cadastro é aberto** e toda conta nasce
   comum: registrar **não loga**, o usuário cai no login com a conta criada, então existe um caminho
   só pra virar sessão.
 - **recording** — o áudio e o estágio do pipeline. `Recording` (AggregateRoot) + VOs `AudioFile` e
@@ -370,10 +372,12 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   `AUDIO_TOO_LARGE` no envelope de domínio, em vez do 413 do Nest que o front não sabe ler.
 - **`GET /upload/allowance`** devolve os tetos do chamador. O front busca em vez de importar
   constante — a UI precisa dizer o número certo pra ESSA conta.
-- **Virar admin é `UPDATE users SET role='admin'`**, rodado à mão por quem é dono do banco. Não existe
-  tela, rota nem convite: promover é raro e deliberado, e não tem por que ser um botão. `toUserRole`
-  é fail-closed — qualquer coisa que não seja exatamente `'admin'` lê como usuário comum, então um
-  typo no UPDATE nunca dá privilégio.
+- **Promover virou botão, mas o PRIMEIRO admin continua sendo `UPDATE users SET role='admin'`** na
+  mão. Antes não existia tela nenhuma; agora um admin promove outra pessoa em `/admin` — o que mudou
+  não foi a raridade do ato, foi passar a existir um lugar onde dá pra VER quem já tem. O primeiro
+  fica de fora de propósito: um app capaz de criar o próprio primeiro administrador é um app em que
+  qualquer um vira administrador. `toUserRole` é fail-closed — qualquer coisa que não seja exatamente
+  `'admin'` lê como usuário comum, então um typo nunca dá privilégio.
 
 - **transcription** — o texto que o modelo ouviu. `Transcription` + VOs `TranscriptText` e
   `TranscriptSegment` (o trecho com o momento em que foi dito — o `verbose_json` já devolvia isso na
@@ -455,6 +459,27 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   `createMany({ skipDuplicates: true })`, então job reprocessado não duplica; evento sem referência
   (`welcome`) pode repetir de propósito (no Postgres dois NULL nunca colidem).
 
+### Administração (TRAVADO)
+
+- **`/admin` é a ÚNICA parte do app que lê ATRAVÉS dos donos.** Por isso as leituras de sistema são
+  métodos **separados** nas portas (`statsQuery`, `listFailedQuery`, `usageByOwnersQuery`,
+  `listAllQuery`) e use cases com nome próprio — nunca um `ownerId?` opcional nos que já existem.
+  Mesmo motivo do `GetRecordingForProcessingQuery`: um dono opcional está a um argumento esquecido
+  de virar leitura sem guarda numa rota comum.
+- **Guard, não middleware**: o `AuthMiddleware` já resolveu QUEM está chamando (middleware roda antes
+  de guard), então o `AdminGuard` só lê `request.user.role`. Ele lança o erro de DOMÍNIO, pra
+  resposta sair no mesmo envelope de todo o resto.
+- **403 aqui, não 404.** Gravação de terceiro responde 404 porque confirmar que existe já vazaria
+  algo; a ÁREA de admin não é segredo — esconder só faria papel errado parecer página quebrada.
+- **Ninguém mexe no próprio acesso** (`CANNOT_CHANGE_OWN_ACCESS`): não existe caminho de volta pra
+  admin dentro do app, então um clique não pode trancar o único administrador do lado de fora. A tela
+  nem desenha os botões na própria linha — botão que sempre dá erro é pior que botão nenhum.
+- **O painel mostra o disco DE VERDADE ao lado do que as linhas somam** (`measureUploads` anda na
+  pasta): a diferença entre os dois números é exatamente o que o `UploadsJanitor` recolhe.
+- **As falhas recentes ficam aqui** porque é a única coisa invisível de outro jeito: cada uma está na
+  biblioteca de um dono diferente, e só lado a lado vinte falhas deixam de ser vinte mistérios
+  separados e viram "a Groq aposentou o modelo".
+
 ## Rotas HTTP
 
 **Nomes de rota em INGLÊS** (kebab-case):
@@ -471,6 +496,9 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 - `transcription/recording/:id` (GET)
 - `summary/recording/:id` (GET), `summary/recording/:id/pdf` (GET, download) e
   `summary/recording/:id/ask` (POST — pergunta sobre o áudio, respondida na hora)
+- `admin` (`GET /overview` [contas, pipeline, disco e falhas recentes], `GET /users` [`?q=`],
+  `PATCH /users/:id` [`{ role?, active? }` — promove/rebaixa e desativa/reativa OUTRA conta]) — todas
+  atrás do `AdminGuard`
 - `annotation` (`POST /recording/:recordingId` [marca um segundo], `GET /recording/:recordingId`,
   `GET /` [a biblioteca inteira, cada linha com o título do áudio], `PATCH /:id` [escreve/apaga a
   nota], `DELETE /:id`)
@@ -632,6 +660,8 @@ validação de UI simples).
   colocava o app inteiro atrás de um hambúrguer. O que os dois precisam concordar (a lista de telas)
   é compartilhado como DADO (`sidebar/data/nav-items.ts`), não como componente. A barra leva
   `pb-[env(safe-area-inset-bottom)]` e o `main` leva `pb-24 lg:pb-6`, senão ela cobre o fim da página.
+- **O `/admin` tem guard PRÓPRIO no `layout.tsx` dele** (dentro do `(private)`), e o item do menu só
+  aparece pra admin. Esconder é cortesia, não segurança: quem recusa de verdade é o guard do backend.
 - **Route groups por acesso**: `(public)` (login/register), `(private)` e `(shared)` (a página de um
   link compartilhado, `/s/:token`). Guard no `layout.tsx` do grupo, nunca por página — e o
   `(shared)` **não tem guard nenhum**, de propósito: o token na URL é a autorização, e quem confere
