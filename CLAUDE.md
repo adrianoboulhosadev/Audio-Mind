@@ -33,7 +33,7 @@ por bounded context**, com **modelagem RICA** (entidades com comportamento e inv
 objects; regras de negócio moram no modelo, não nos casos de uso).
 
 Contextos de domínio: `auth`, `recording`, `transcription`, `summary`, `task`, `sharing`,
-`notification`. O `auth` é a
+`annotation`, `notification`. O `auth` é a
 **referência canônica** de fiação (core → adapters → backend).
 
 Fluxo do produto: o usuário grava no navegador ou envia um arquivo → o backend guarda o áudio e
@@ -60,7 +60,7 @@ apps/
 ```
 
 Contextos e scopes: `@auth/*`, `@recording/*`, `@transcription/*`, `@summary/*`, `@task/*`,
-`@sharing/*`, `@notification/*`. `core` e `adapters` são **pacotes separados**. Workspaces:
+`@sharing/*`, `@annotation/*`, `@notification/*`. `core` e `adapters` são **pacotes separados**. Workspaces:
 `["apps/*","packages/shared","packages/database","packages/*/core","packages/*/adapters"]`.
 
 ## Modelagem rica (TRAVADA)
@@ -138,7 +138,8 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
   Orquestração cross-context fica na camada de app. Limites: `auth`=identidade/credencial;
   `recording`=o áudio e o estágio do pipeline; `transcription`=o texto que o modelo ouviu;
   `summary`=o que o LLM escreveu + o PDF; `task`=o que ficou pra fazer;
-  `sharing`=quem pode ver isso sem ter conta; `notification`=caixa de entrada (não conhece nenhum outro
+  `sharing`=quem pode ver isso sem ter conta;
+  `annotation`=os momentos que a pessoa marcou; `notification`=caixa de entrada (não conhece nenhum outro
   contexto — quem dispara é a camada de app).
 - **Dono é resolvido no app, sempre contra a `recording`**: `transcription` e `summary` **não sabem
   quem é dono de nada**. As rotas `GET /transcription/recording/:id` e `GET /summary/recording/:id`
@@ -157,7 +158,8 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
 - **O cascade de uma gravação mora no `RecordingEraser`** (app layer), não no controller: as MESMAS
   etapas na MESMA ordem servem "excluir esse áudio" e "excluir minha conta". Uma segunda cópia da
   ordem é uma segunda chance de esquecer o PDF no disco. A ordem é sempre **derivado primeiro**: links de
-  compartilhamento, tarefas, transcrição, resumo, gravação e só então os arquivos em disco. Os links
+  compartilhamento, marcadores, tarefas, transcrição, resumo, gravação e só então os arquivos em
+  disco. Os links
   vão na frente porque tudo abaixo deixa de existir num instante, e uma URL pública viva é a única
   sobra que ainda responderia.
 - A biblioteca inteira sai **por páginas** de 100 (o teto do lado de leitura): cada passada apaga o
@@ -428,6 +430,22 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   - O `PublicShareController` fica **FORA do `AuthMiddleware`** (é por classe), como o stream de
     áudio e o SSE. A resposta pública é um **payload próprio**, não os DTOs das telas privadas: sem
     dono, sem id de usuário, sem id de gravação, sem nome de modelo.
+- **annotation** — os momentos que a pessoa marcou. `Annotation` + VOs `AnnotationTime` e
+  `AnnotationNote`. **Marcador e anotação são a MESMA linha** — a diferença é a nota estar
+  preenchida; separar em duas entidades seria duas tabelas e uma migration no dia em que alguém
+  escrever num marcador que já existe.
+  - **A âncora é o TEMPO, não o segmento da transcrição.** É isso que faz o marcador **sobreviver ao
+    reprocessamento**: o áudio não muda, então o segundo 412 continua sendo o segundo 412, enquanto
+    os segmentos ao redor podem ser redesenhados por um modelo melhor (ou aparecer pela primeira
+    vez).
+  - **Marcar não exige escrever**: ouvindo, ser obrigado a redigir uma nota é o que faz a pessoa
+    parar de marcar. Apagar o texto **não apaga o marcador** — ela ainda pediu pra lembrar daquele
+    momento. E o texto é editável, ao contrário do resumo e da tarefa: aqui as palavras são dela,
+    não de um modelo.
+  - **Sem índice único em (gravação, segundo)**: dois marcadores no mesmo segundo são dois
+    pensamentos, não um engano.
+  - **`AnnotationTime` não confere a duração da gravação** — este contexto não conhece a gravação, e
+    um marcador além do fim é inofensivo. O teto é sanidade de coluna, não regra de produto.
 - **notification** — caixa de entrada (sininho + tela `/notifications`). `Notification.for(input)`
   é um factory com `switch` sobre uma **união discriminada**, então nenhum caller inventa campo nem
   esquece o motivo de uma falha, e a copy fica numa decisão só em vez de espalhada por dois apps. O
@@ -453,6 +471,9 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 - `transcription/recording/:id` (GET)
 - `summary/recording/:id` (GET), `summary/recording/:id/pdf` (GET, download) e
   `summary/recording/:id/ask` (POST — pergunta sobre o áudio, respondida na hora)
+- `annotation` (`POST /recording/:recordingId` [marca um segundo], `GET /recording/:recordingId`,
+  `GET /` [a biblioteca inteira, cada linha com o título do áudio], `PATCH /:id` [escreve/apaga a
+  nota], `DELETE /:id`)
 - `share` (`POST /recording/:recordingId` [cria o link], `GET /` [`?recordingId=`, os links do dono],
   `DELETE /:id` [revoga]) e `share/public/:token` (GET, **sem login** — o token é a autorização
   inteira) + `share/public/:token/audio` (GET, **Range**, só se o link incluir o áudio)
