@@ -60,6 +60,15 @@ export const Errors = {
   QUESTION_TOO_LONG: 'QUESTION_TOO_LONG',
   EMPTY_ANSWER: 'EMPTY_ANSWER',
 
+  // sharing — a public link to ONE recording's summary
+  SHARE_LINK_NOT_FOUND: 'SHARE_LINK_NOT_FOUND',
+  // Only ever answered to somebody who already holds a valid token: being told
+  // WHY it stopped working saves them from concluding the app is broken.
+  SHARE_LINK_EXPIRED: 'SHARE_LINK_EXPIRED',
+  SHARE_LINK_REVOKED: 'SHARE_LINK_REVOKED',
+  INVALID_SHARE_TOKEN: 'INVALID_SHARE_TOKEN',
+  INVALID_SHARE_EXPIRATION: 'INVALID_SHARE_EXPIRATION',
+
   // task — an action item promoted out of a summary, with a life of its own
   TASK_NOT_FOUND: 'TASK_NOT_FOUND',
   EMPTY_TASK: 'EMPTY_TASK',
