@@ -1,7 +1,8 @@
 # CLAUDE.md — guia de engenharia do Audio-Mind
 
 Instruções e padrões deste monorepo. **Siga à risca** — estas decisões estão travadas.
-Para contexto de produto, veja o `README.md`.
+Para contexto de produto, veja o `README.md`. Para o que ainda **vai** ser feito (fila combinada com
+o dono, nada travado), veja o `ROADMAP.md`.
 
 > **Idioma do código: INGLÊS.** O projeto inteiro é em inglês — tabelas/colunas do banco,
 > arquivos, pastas, tipos, funções, variáveis, rotas, códigos de erro e comentários. **Nada de
