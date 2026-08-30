@@ -13,6 +13,7 @@
     "@recording/adapters": "*",
     "@transcription/adapters": "*",
     "@summary/adapters": "*",
+    "@task/adapters": "*",
     "@notification/adapters": "*",
     "shared": "*",
     "database": "*",

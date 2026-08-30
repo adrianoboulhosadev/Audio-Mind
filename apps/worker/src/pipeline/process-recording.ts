@@ -1,5 +1,6 @@
 import { RecordingFacade } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
+import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { resolveUploadPath } from '../pdf/uploads-path'
 import { failureReasonFor } from './failure-reason'
@@ -8,6 +9,7 @@ export interface ProcessRecordingDeps {
   recordings: RecordingFacade
   transcriptions: TranscriptionFacade
   summaries: SummaryFacade
+  tasks: TaskFacade
   /** Language the summary is WRITTEN in — the audio's is detected by the model. */
   summaryLanguage: string
 }
@@ -33,7 +35,7 @@ export async function processRecording(
   recordingId: string,
   deps: ProcessRecordingDeps,
 ): Promise<void> {
-  const { recordings, transcriptions, summaries, summaryLanguage } = deps
+  const { recordings, transcriptions, summaries, tasks, summaryLanguage } = deps
 
   try {
     const recording = await recordings.getRecordingForProcessing(recordingId)
@@ -62,12 +64,27 @@ export async function processRecording(
       language: summaryLanguage,
     })
 
+    // Read back once, and used for both of the things that come out of it: the
+    // name for an audio nobody titled, and the action items. The command
+    // answered no value (CQRS), hence the re-read.
+    const summary = await summaries.getSummary(recordingId)
+
     // The summary knows what the audio was about, so an audio nobody named gets
     // named here. The entity refuses the suggestion when the person typed a
-    // title, and the recording is re-read because the command answers no value
-    // (CQRS) — and the PDF should carry the FINAL title, not the placeholder.
-    const summary = await summaries.getSummary(recordingId)
+    // title, and the recording is re-read below because the PDF should carry
+    // the FINAL title, not the placeholder.
     await recordings.suggestRecordingTitle(recordingId, summary.headline)
+
+    // The action items become TASKS with a life of their own: read straight off
+    // the summary they would have nowhere to remember being ticked, and this
+    // very step — running again — would silently un-tick them all. Nothing here
+    // calls a model; the list was already written and already paid for.
+    await tasks.syncRecordingTasks({
+      recordingId,
+      ownerId: recording.ownerId,
+      texts: summary.actionItems,
+    })
+
     const named = await recordings.getRecordingForProcessing(recordingId)
 
     // The PDF is rendered before the recording is called ready, so "pronto" in

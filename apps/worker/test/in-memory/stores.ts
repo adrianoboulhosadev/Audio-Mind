@@ -24,6 +24,7 @@ import {
   SummaryQueryRepository,
   SummaryRepository,
 } from '@summary/adapters'
+import { Task, TaskDTO, TaskQueryRepository, TaskRepository } from '@task/adapters'
 
 /**
  * In-memory doubles of the ports the pipeline drives, so `processRecording` can
@@ -88,6 +89,10 @@ export class RecordingStore implements RecordingRepository, RecordingQueryReposi
 
   async searchByOwnerQuery(ownerId: string): Promise<RecordingDTO[]> {
     return [...this.rows.values()].filter((row) => row.ownerId === ownerId)
+  }
+
+  async listByIdsQuery(ownerId: string, ids: string[]): Promise<RecordingDTO[]> {
+    return [...this.rows.values()].filter((row) => row.ownerId === ownerId && ids.includes(row.id))
   }
 }
 
@@ -178,6 +183,72 @@ export class SummaryStore implements SummaryRepository, SummaryQueryRepository {
   }
 }
 
+/**
+ * The tasks the pipeline materializes, with the same unique (recordingId, text)
+ * the table has — without it a test would pass on the duplicate a re-processed
+ * recording would produce, which is the exact thing this table exists to stop.
+ */
+export class TaskStore implements TaskRepository, TaskQueryRepository {
+  private rows: { id: string; ownerId: string; recordingId: string; text: string; doneAt: Date | null; createdAt: Date }[] = []
+
+  get texts(): string[] {
+    return this.rows.map((row) => row.text)
+  }
+
+  async findById(id: string): Promise<Task | null> {
+    const row = this.rows.find((current) => current.id === id)
+    return row ? new Task({ ...row }) : null
+  }
+
+  async update(task: Task): Promise<void> {
+    const index = this.rows.findIndex((current) => current.id === task.id.value)
+    if (index >= 0) this.rows[index].doneAt = task.doneAt
+  }
+
+  async createMany(tasks: Task[]): Promise<void> {
+    for (const task of tasks) {
+      const duplicate = this.rows.some(
+        (row) => row.recordingId === task.recordingId && row.text === task.text.value,
+      )
+      if (duplicate) continue
+      this.rows.push({
+        id: task.id.value,
+        ownerId: task.ownerId,
+        recordingId: task.recordingId,
+        text: task.text.value,
+        doneAt: task.doneAt,
+        createdAt: task.createdAt,
+      })
+    }
+  }
+
+  async deletePendingByRecordingExcept(recordingId: string, keep: string[]): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => row.recordingId !== recordingId || row.doneAt !== null || keep.includes(row.text),
+    )
+  }
+
+  async deleteByRecording(recordingId: string): Promise<void> {
+    this.rows = this.rows.filter((row) => row.recordingId !== recordingId)
+  }
+
+  async listByOwnerQuery(ownerId: string): Promise<TaskDTO[]> {
+    return this.rows
+      .filter((row) => row.ownerId === ownerId)
+      .map((row) => ({
+        id: row.id,
+        recordingId: row.recordingId,
+        text: row.text,
+        doneAt: row.doneAt,
+        createdAt: row.createdAt,
+      }))
+  }
+
+  async countPendingQuery(ownerId: string): Promise<number> {
+    return this.rows.filter((row) => row.ownerId === ownerId && row.doneAt === null).length
+  }
+}
+
 export class FakeSpeechToText implements SpeechToTextProvider {
   readonly calls: SpeechToTextInput[] = []
 
@@ -196,7 +267,10 @@ export class FakeSpeechToText implements SpeechToTextProvider {
 export class FakeSummaryGenerator implements SummaryGenerator {
   readonly calls: SummaryGeneratorInput[] = []
 
-  constructor(private readonly failure?: Error) {}
+  constructor(
+    private readonly failure?: Error,
+    private readonly actionItems: string[] = [],
+  ) {}
 
   async generate(input: SummaryGeneratorInput): Promise<GeneratedSummary> {
     this.calls.push(input)
@@ -205,8 +279,8 @@ export class FakeSummaryGenerator implements SummaryGenerator {
       headline: 'Revisão de entregas',
       overview: 'O time revisou as entregas da semana.',
       topics: ['Entregas'],
-      actionItems: [],
-      model: 'llama-3.3-70b-versatile',
+      actionItems: this.actionItems,
+      model: 'openai/gpt-oss-120b',
     }
   }
 }

@@ -1,5 +1,6 @@
 import { RecordingFacade, RecordingTitle } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
+import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { Errors, ValidationError } from 'shared'
 import { processRecording } from '../src/pipeline/process-recording'
@@ -9,6 +10,7 @@ import {
   FakeSummaryGenerator,
   RecordingStore,
   SummaryStore,
+  TaskStore,
   TranscriptionStore,
 } from './in-memory/stores'
 
@@ -43,6 +45,7 @@ function setup(
   const speechToText = options.speechToText ?? new FakeSpeechToText()
   const generator = options.generator ?? new FakeSummaryGenerator()
   const renderer = new FakePdfRenderer()
+  const taskStore = new TaskStore()
 
   return {
     recordingStore,
@@ -51,10 +54,12 @@ function setup(
     speechToText,
     generator,
     renderer,
+    taskStore,
     deps: {
       recordings: new RecordingFacade(recordingStore, recordingStore),
       transcriptions: new TranscriptionFacade(transcriptionStore, transcriptionStore, speechToText),
       summaries: new SummaryFacade(summaryStore, summaryStore, generator, renderer),
+      tasks: new TaskFacade(taskStore),
       summaryLanguage: 'pt',
     },
   }
@@ -153,4 +158,18 @@ test('a title the person typed survives the pipeline', async () => {
   await processRecording(RECORDING_ID, context.deps)
 
   expect(context.recordingStore.get(RECORDING_ID).title).toBe('Daily do time')
+})
+
+test('os action items do resumo viram tarefas — e reprocessar não duplica', async () => {
+  const context = setup({
+    generator: new FakeSummaryGenerator(undefined, ['Mandar a proposta', 'Marcar a reunião']),
+  })
+
+  await processRecording(RECORDING_ID, context.deps)
+  expect(context.taskStore.texts.sort()).toEqual(['Mandar a proposta', 'Marcar a reunião'])
+
+  // O mesmo áudio processado de novo: a lista é reconciliada, não empilhada.
+  context.recordingStore.get(RECORDING_ID).status = 'pending'
+  await processRecording(RECORDING_ID, context.deps)
+  expect(context.taskStore.texts).toHaveLength(2)
 })

@@ -103,6 +103,14 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
     return rows.map((row) => row.id)
   }
 
+  async listByIdsQuery(ownerId: string, ids: string[]): Promise<RecordingDTO[]> {
+    const rows = await this.prisma.recording.findMany({
+      where: { ownerId, id: { in: ids } },
+      orderBy: { createdAt: 'desc' },
+    })
+    return rows.map((row) => this.toDTO(row))
+  }
+
   async searchByOwnerQuery(
     ownerId: string,
     term: string,

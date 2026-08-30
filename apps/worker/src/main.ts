@@ -4,6 +4,7 @@ dotenv.config()
 import { PrismaClient } from 'database'
 import { RecordingFacade } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
+import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
@@ -15,6 +16,7 @@ import { PipelineEventPublisher } from './notification/pipeline-event-publisher'
 import { PrismaNotificationRepository } from './persistence/prisma-notification-repository'
 import { PrismaRecordingRepository } from './persistence/prisma-recording-repository'
 import { PrismaSummaryRepository } from './persistence/prisma-summary-repository'
+import { PrismaTaskRepository } from './persistence/prisma-task-repository'
 import { PrismaTranscriptionRepository } from './persistence/prisma-transcription-repository'
 import { processRecording } from './pipeline/process-recording'
 
@@ -65,6 +67,10 @@ function main(): void {
     new PdfKitSummaryRenderer(),
   )
 
+  // Write side only: the pipeline materializes the action items, and reading
+  // them back belongs to the screen (the backend).
+  const tasks = new TaskFacade(new PrismaTaskRepository(prisma))
+
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null })
 
   const worker = new Worker<ProcessRecordingJob>(
@@ -74,6 +80,7 @@ function main(): void {
         recordings,
         transcriptions,
         summaries,
+        tasks,
         summaryLanguage: process.env.SUMMARY_LANGUAGE ?? 'pt',
       })
     },

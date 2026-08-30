@@ -12,6 +12,8 @@
       "@transcription/core": ["../../packages/transcription/core/src"],
       "@summary/adapters": ["../../packages/summary/adapters/src"],
       "@summary/core": ["../../packages/summary/core/src"],
+      "@task/adapters": ["../../packages/task/adapters/src"],
+      "@task/core": ["../../packages/task/core/src"],
       "@notification/adapters": ["../../packages/notification/adapters/src"],
       "@notification/core": ["../../packages/notification/core/src"]
     }
