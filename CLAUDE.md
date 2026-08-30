@@ -32,7 +32,7 @@ Monorepo **Turborepo + npm workspaces** em TypeScript. Arquitetura **hexagonal (
 por bounded context**, com **modelagem RICA** (entidades com comportamento e invariantes + value
 objects; regras de negócio moram no modelo, não nos casos de uso).
 
-Contextos de domínio: `auth`, `recording`, `transcription`, `summary`, `notification`. O `auth` é a
+Contextos de domínio: `auth`, `recording`, `transcription`, `summary`, `task`, `notification`. O `auth` é a
 **referência canônica** de fiação (core → adapters → backend).
 
 Fluxo do produto: o usuário grava no navegador ou envia um arquivo → o backend guarda o áudio e
@@ -58,7 +58,7 @@ apps/
   database/  (container-db)            # docker-compose: Postgres + Redis (dev)
 ```
 
-Contextos e scopes: `@auth/*`, `@recording/*`, `@transcription/*`, `@summary/*`,
+Contextos e scopes: `@auth/*`, `@recording/*`, `@transcription/*`, `@summary/*`, `@task/*`,
 `@notification/*`. `core` e `adapters` são **pacotes separados**. Workspaces:
 `["apps/*","packages/shared","packages/database","packages/*/core","packages/*/adapters"]`.
 
@@ -136,7 +136,7 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
 - **Fronteiras**: contextos se tocam **só por portas**, nunca import direto entre cores.
   Orquestração cross-context fica na camada de app. Limites: `auth`=identidade/credencial;
   `recording`=o áudio e o estágio do pipeline; `transcription`=o texto que o modelo ouviu;
-  `summary`=o que o LLM escreveu + o PDF; `notification`=caixa de entrada (não conhece nenhum outro
+  `summary`=o que o LLM escreveu + o PDF; `task`=o que ficou pra fazer; `notification`=caixa de entrada (não conhece nenhum outro
   contexto — quem dispara é a camada de app).
 - **Dono é resolvido no app, sempre contra a `recording`**: `transcription` e `summary` **não sabem
   quem é dono de nada**. As rotas `GET /transcription/recording/:id` e `GET /summary/recording/:id`
@@ -154,7 +154,8 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
   conta que ainda funciona e pode tentar de novo.
 - **O cascade de uma gravação mora no `RecordingEraser`** (app layer), não no controller: as MESMAS
   etapas na MESMA ordem servem "excluir esse áudio" e "excluir minha conta". Uma segunda cópia da
-  ordem é uma segunda chance de esquecer o PDF no disco.
+  ordem é uma segunda chance de esquecer o PDF no disco. A ordem é sempre **derivado primeiro**: tarefas,
+  transcrição, resumo, gravação e só então os arquivos em disco.
 - A biblioteca inteira sai **por páginas** de 100 (o teto do lado de leitura): cada passada apaga o
   que leu, então a próxima volta menor e o laço termina numa página vazia. Nada de inventar uma
   porta de listagem sem teto só pra isso.
@@ -210,6 +211,9 @@ pending -> transcribing -> summarizing -> ready --(reprocessar, só o dono)--> p
   a da retentativa costuma ser consequência.
 - **Transcrição e resumo são `upsert` por `recordingId`** (coluna única): reprocessar SUBSTITUI,
   nunca empilha.
+- **Os `action_items` do resumo viram tarefas ali mesmo** (`SyncRecordingTasks`), antes do PDF:
+  nenhuma chamada de modelo a mais, porque a lista já foi escrita e já foi paga. Reprocessar
+  reconcilia em vez de empilhar — ver o contexto `task`.
 - **O PDF é renderizado ANTES de a gravação ser marcada `ready`**, então "pronto" na caixa de
   entrada nunca aponta pra um botão de download que não faz nada.
 - `SummarizeTranscript` e `RenderSummaryPdf` são use cases **separados**: falhar ao desenhar o
@@ -367,6 +371,19 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   que ninguém pediu antes, então **nada é gravado**. Roda DENTRO do request (segundos, com a pessoa
   esperando), ao contrário dos dois passos do pipeline, e o adapter da Groq mora no `apps/backend`,
   com a lista de fallback duplicada de propósito (driven adapter mora no app que consome a porta).
+- **task** — o que ficou pra fazer. `Task` + VO `TaskText` (mesmo teto do `SummaryBullet`, porque a
+  tarefa É um bullet promovido: se os dois discordassem, o pipeline aceitaria um resumo e depois
+  falharia ao materializar os próprios itens dele). **MATERIALIZADA, não derivada** — e essa é a
+  decisão inteira: tarefa lida do resumo na hora não teria onde lembrar que foi marcada, e
+  reprocessar o áudio desmarcaria tudo em silêncio. A idempotência vem do banco
+  (`@@unique([recordingId, text])` + `createMany({ skipDuplicates: true })`), igual à da notificação.
+  `SyncRecordingTasks` **reconcilia** em vez de reescrever: insere o que é novo e apaga o que o
+  modelo parou de dizer **só enquanto pendente** — o que a pessoa já marcou é registro de algo que
+  ela FEZ, e nenhuma leitura posterior do áudio apaga isso. O contexto não sabe o título da gravação
+  (quem junta é a camada de app, ids pra lá, linhas pra cá — a mesma forma da busca).
+  **O minuto em que a tarefa foi combinada NÃO é mostrado**, pelo mesmo motivo do timestamp no PDF:
+  `action_items` são paráfrases, e casar cada uma com um segmento seria adivinhar um momento com
+  cara de certeza.
 - **notification** — caixa de entrada (sininho + tela `/notifications`). `Notification.for(input)`
   é um factory com `switch` sobre uma **união discriminada**, então nenhum caller inventa campo nem
   esquece o motivo de uma falha, e a copy fica numa decisão só em vez de espalhada por dois apps. O
@@ -391,6 +408,8 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 - `transcription/recording/:id` (GET)
 - `summary/recording/:id` (GET), `summary/recording/:id/pdf` (GET, download) e
   `summary/recording/:id/ask` (POST — pergunta sobre o áudio, respondida na hora)
+- `task` (`GET /` [`?status=pending|done|all`, `?limit=`; devolve `{ pendingCount, items }`, cada item
+  com a tarefa e o título da gravação de onde saiu], `PATCH /:id` [`{ done }` — marca e desmarca])
 - `notification` (`GET /` [`?limit=`, devolve `{ unreadCount, items }`], `POST /read-all`,
   `POST /:id/read`, `DELETE /:id`, `DELETE /`, `GET /stream` [**SSE**, ver abaixo — é a **única**
   rota autenticada por token na query string, porque `EventSource` não manda header])
@@ -448,8 +467,8 @@ controllers usam **sempre** esse id (via `@authenticatedUser`), nunca id vindo d
 - **Models/tabelas**: `User`(users), `AuthSession`(auth_sessions), `Recording`(recordings),
   `Transcription`(transcriptions; `recording_id` **único**), `Summary`(summaries; `recording_id`
   **único**; `topics`/`action_items` são `String[]` — são os bullets do próprio resumo, sempre lidos
-  e escritos com ele e nunca consultados sozinhos), `Notification`(notifications;
-  `@@unique([userId, type, referenceId])`). FKs entre contextos são **lógicas** (sem relation Prisma
+  e escritos com ele e nunca consultados sozinhos), `Task`(tasks; `recording_id`+`text` **único**),
+  `Notification`(notifications; `@@unique([userId, type, referenceId])`). FKs entre contextos são **lógicas** (sem relation Prisma
   cruzando contexto). Colunas snake_case via `@map`.
 - **MIGRATIONS (TRAVADO) — nada de `db push`.** O schema evolui por migration versionada em
   `packages/database/prisma/migrations/`, commitada junto com a mudança do `schema.prisma`.
