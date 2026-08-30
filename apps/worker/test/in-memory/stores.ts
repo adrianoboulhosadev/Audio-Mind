@@ -1,4 +1,6 @@
 import {
+  LibraryStatsDTO,
+  OwnerUsageDTO,
   Recording,
   RecordingDTO,
   RecordingQueryRepository,
@@ -94,6 +96,34 @@ export class RecordingStore implements RecordingRepository, RecordingQueryReposi
 
   async listByIdsQuery(ownerId: string, ids: string[]): Promise<RecordingDTO[]> {
     return [...this.rows.values()].filter((row) => row.ownerId === ownerId && ids.includes(row.id))
+  }
+
+  // The admin screen's SYSTEM reads. The pipeline never asks for them.
+  async statsQuery(): Promise<LibraryStatsDTO> {
+    const rows = [...this.rows.values()]
+    const byStatus = { pending: 0, transcribing: 0, summarizing: 0, ready: 0, failed: 0 }
+    for (const row of rows) byStatus[row.status] += 1
+
+    return {
+      byStatus,
+      total: rows.length,
+      storageBytes: rows.reduce((sum, row) => sum + row.sizeBytes, 0),
+    }
+  }
+
+  async listFailedQuery(limit: number): Promise<RecordingDTO[]> {
+    return [...this.rows.values()].filter((row) => row.status === 'failed').slice(0, limit)
+  }
+
+  async usageByOwnersQuery(ownerIds: string[]): Promise<OwnerUsageDTO[]> {
+    return ownerIds.map((ownerId) => {
+      const owned = [...this.rows.values()].filter((row) => row.ownerId === ownerId)
+      return {
+        ownerId,
+        recordings: owned.length,
+        storageBytes: owned.reduce((sum, row) => sum + row.sizeBytes, 0),
+      }
+    })
   }
 }
 

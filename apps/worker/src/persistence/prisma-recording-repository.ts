@@ -2,6 +2,8 @@ import { Prisma, PrismaClient } from 'database'
 import {
   Recording,
   RecordingDTO,
+  LibraryStatsDTO,
+  OwnerUsageDTO,
   RecordingQueryRepository,
   RecordingRepository,
   RecordingSource,
@@ -132,6 +134,47 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
       take: limit,
     })
     return rows.map((row) => this.toDTO(row))
+  }
+
+  // SYSTEM reads of the admin screen. The worker never asks for them; the READ
+  // port is one interface, so they are answered honestly.
+  async statsQuery(): Promise<LibraryStatsDTO> {
+    const grouped = await this.prisma.recording.groupBy({ by: ['status'], _count: { _all: true } })
+    const totals = await this.prisma.recording.aggregate({
+      _sum: { sizeBytes: true },
+      _count: { _all: true },
+    })
+
+    const byStatus = { pending: 0, transcribing: 0, summarizing: 0, ready: 0, failed: 0 }
+    for (const row of grouped) {
+      const status = row.status as keyof typeof byStatus
+      if (status in byStatus) byStatus[status] = row._count._all
+    }
+
+    return { byStatus, total: totals._count._all, storageBytes: totals._sum.sizeBytes ?? 0 }
+  }
+
+  async listFailedQuery(limit: number): Promise<RecordingDTO[]> {
+    const rows = await this.prisma.recording.findMany({
+      where: { status: 'failed' },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    })
+    return rows.map((row) => this.toDTO(row))
+  }
+
+  async usageByOwnersQuery(ownerIds: string[]): Promise<OwnerUsageDTO[]> {
+    const rows = await this.prisma.recording.groupBy({
+      by: ['ownerId'],
+      where: { ownerId: { in: ownerIds } },
+      _count: { _all: true },
+      _sum: { sizeBytes: true },
+    })
+    return rows.map((row) => ({
+      ownerId: row.ownerId,
+      recordings: row._count._all,
+      storageBytes: row._sum.sizeBytes ?? 0,
+    }))
   }
 
   async findByIdQuery(id: string): Promise<RecordingDTO | null> {
