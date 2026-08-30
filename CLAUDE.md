@@ -688,6 +688,15 @@ validação de UI simples).
   conveniência, não fato sobre a gravação) e o `?t=` da busca ganha dela. Chegar ao fim esquece a
   posição. A transcrição **acompanha** o áudio e para de seguir por 6s quando a pessoa rola com a
   mão — sem isso, reler uma linha vira briga com o player, e o player sempre ganha.
+- **Dá pra PAUSAR a gravação** (`MediaRecorder.pause()/resume()`), e o cronômetro **desconta o tempo
+  parado**. Isso não é detalhe: a duração é medida pelo RELÓGIO (o WebM não traz duração no header),
+  e um recorder pausado não escreve áudio — sem descontar, um intervalo de café viraria minutos de
+  duração num arquivo que não os tem, e nada no build ou na tela denunciaria. Tem teste.
+- **Share target do PWA**: compartilhar um áudio de qualquer app do Android abre o Audio Mind já com
+  o arquivo no composer. O POST cai no **service worker** (`public/sw.js`), que guarda os bytes no
+  Cache Storage e redireciona com **303** (o que transforma o POST num GET, então recarregar não
+  reenvia nada). A página lê UMA vez e apaga — e o `activate` do SW poupa esse cache, senão limparia
+  justo o arquivo que alguém acabou de compartilhar.
 - **Gravar segura a tela acesa** (`navigator.wakeLock`): no celular a tela apagando suspende a
   página, e página suspensa não alimenta o `MediaRecorder` — que é exatamente o caso de deixar o
   telefone na mesa numa reunião de 40 minutos. Best-effort (nem todo navegador tem) e retomado a
