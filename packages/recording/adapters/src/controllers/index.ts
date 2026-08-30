@@ -1,5 +1,6 @@
 export { default as UploadRecordingController } from './upload-recording-controller'
 export { default as ListMyRecordingsController } from './list-my-recordings-controller'
+export { default as ListRecordingsByIdsController } from './list-recordings-by-ids-controller'
 export { default as SearchMyRecordingsController } from './search-my-recordings-controller'
 export { default as GetRecordingController } from './get-recording-controller'
 export { default as RenameRecordingController } from './rename-recording-controller'

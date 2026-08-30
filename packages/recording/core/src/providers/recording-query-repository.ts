@@ -14,6 +14,16 @@ export interface RecordingQueryRepository {
    */
   listAllIdsByOwnerQuery(ownerId: string): Promise<string[]>
   /**
+   * These recordings, and only the ones this owner actually has.
+   *
+   * It exists for the reverse of the search: a DERIVED context (a task, an
+   * annotation) hands over the recording ids it stored, and this answers with
+   * the rows they belong to, so a screen can say WHICH audio each line came
+   * from. Owner-scoped in the query itself, so an id that leaked from anywhere
+   * still cannot read someone else's row.
+   */
+  listByIdsQuery(ownerId: string, ids: string[]): Promise<RecordingDTO[]>
+  /**
    * The owner's recordings whose TITLE matches `term`, plus the ones named in
    * `alsoIds` — the ids the derived contexts matched by their own text. One
    * query, because ownership and ordering are this context's job and doing it

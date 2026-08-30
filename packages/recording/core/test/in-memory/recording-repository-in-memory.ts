@@ -83,6 +83,12 @@ export default class RecordingRepositoryInMemory
     return this.rows.filter((row) => row.ownerId === ownerId).map((row) => row.id)
   }
 
+  async listByIdsQuery(ownerId: string, ids: string[]): Promise<RecordingDTO[]> {
+    return this.rows
+      .filter((row) => row.ownerId === ownerId && ids.includes(row.id))
+      .map((row) => ({ ...row }))
+  }
+
   // Same shape as the SQL: title match OR one of the ids another context
   // matched, always inside this owner's rows, newest first.
   async searchByOwnerQuery(

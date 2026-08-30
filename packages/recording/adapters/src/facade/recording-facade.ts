@@ -12,6 +12,7 @@ import {
   GetRecordingController,
   GetRecordingForProcessingController,
   ListMyRecordingsController,
+  ListRecordingsByIdsController,
   SearchMyRecordingsController,
   SuggestRecordingTitleController,
   RenameRecordingController,
@@ -65,6 +66,12 @@ export default class RecordingFacade {
       matchedIds,
       limit,
     )
+  }
+
+  /** The rows behind ids another context stored (the tasks screen, the
+   * annotations screen) — owner-scoped by the query itself. */
+  async listRecordingsByIds(ownerId: string, ids: string[]): Promise<RecordingDTO[]> {
+    return new ListRecordingsByIdsController(this.queryRepository!).execute(ownerId, ids)
   }
 
   async listMyRecordingIds(ownerId: string): Promise<string[]> {
