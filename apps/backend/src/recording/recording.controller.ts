@@ -13,7 +13,13 @@ import {
 import { Response } from 'express'
 import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
-import { RecordingDTO, RecordingFacade, RenameRecordingInput, UploadRecordingInput } from '@recording/adapters'
+import {
+  ChangeRecordingKindInput,
+  RecordingDTO,
+  RecordingFacade,
+  RenameRecordingInput,
+  UploadRecordingInput,
+} from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { UserDTO } from '@auth/adapters'
@@ -155,6 +161,22 @@ export class RecordingController {
   ) {
     requireFields(input, ['title'])
     await this.facade().renameRecording(id, user.id, input)
+  }
+
+  /**
+   * Which summary template this audio gets. Its own route rather than a field on
+   * the rename: they are two different commands, and this one is the only edit
+   * whose effect is not immediate — it changes what the NEXT run produces, which
+   * is why the screen puts the reprocess button right next to it.
+   */
+  @Patch(':id/kind')
+  async changeKind(
+    @authenticatedUser() user: UserDTO,
+    @Param('id') id: string,
+    @Body() input: ChangeRecordingKindInput,
+  ) {
+    requireFields(input, ['kind'])
+    await this.facade().changeRecordingKind(id, user.id, input)
   }
 
   @Post(':id/retry')

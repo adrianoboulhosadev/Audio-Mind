@@ -7,6 +7,7 @@ import {
   RecordingRepository,
   RecordingSource,
   RecordingStatus,
+  toRecordingKind,
 } from '@recording/adapters'
 import { PrismaService } from '../db/prisma.service'
 
@@ -14,6 +15,7 @@ interface RecordingRow {
   id: string
   ownerId: string
   title: string
+  kind: string
   source: string
   audioUrl: string
   mimeType: string
@@ -36,6 +38,7 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
       id: row.id,
       ownerId: row.ownerId,
       title: row.title,
+      kind: toRecordingKind(row.kind),
       source: row.source as RecordingSource,
       audioUrl: row.audioUrl,
       mimeType: row.mimeType,
@@ -51,6 +54,7 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
   private toDTO(row: RecordingRow): RecordingDTO {
     return {
       ...row,
+      kind: toRecordingKind(row.kind),
       source: row.source as RecordingSource,
       status: row.status as RecordingStatus,
     }
@@ -62,6 +66,7 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
         id: recording.id.value,
         ownerId: recording.ownerId,
         title: recording.title.value,
+        kind: recording.kind,
         source: recording.source,
         // Serializing reads the value objects — the entity never leaks raw props.
         audioUrl: recording.audio.url,
@@ -86,6 +91,7 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
       where: { id: recording.id.value },
       data: {
         title: recording.title.value,
+        kind: recording.kind,
         status: recording.status,
         failureReason: recording.failureReason,
       },
