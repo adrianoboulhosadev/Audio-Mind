@@ -1,3 +1,3 @@
-import type { RecordingDTO } from '@recording/core'
+import type { LibraryStatsDTO, OwnerUsageDTO, RecordingDTO } from '@recording/core'
 
-export type { RecordingDTO }
+export type { RecordingDTO, LibraryStatsDTO, OwnerUsageDTO }

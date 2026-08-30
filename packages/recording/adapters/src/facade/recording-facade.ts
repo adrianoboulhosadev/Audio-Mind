@@ -1,5 +1,7 @@
 import {
   AudioAllowance,
+  LibraryStatsDTO,
+  OwnerUsageDTO,
   RecordingDTO,
   RecordingProcessingQueue,
   RecordingQueryRepository,
@@ -14,6 +16,9 @@ import {
   GetRecordingForProcessingController,
   ListMyRecordingsController,
   ListRecordingsByIdsController,
+  GetLibraryStatsController,
+  ListFailedRecordingsController,
+  GetOwnerUsageController,
   SearchMyRecordingsController,
   SuggestRecordingTitleController,
   RenameRecordingController,
@@ -77,6 +82,23 @@ export default class RecordingFacade {
 
   async listMyRecordingIds(ownerId: string): Promise<string[]> {
     return this.queryRepository!.listAllIdsByOwnerQuery(ownerId)
+  }
+
+  /**
+   * SYSTEM reads for the administrator's screen — no owner anywhere in them.
+   * Named as such on purpose: everything else in this facade answers for one
+   * person, and these three do not.
+   */
+  async getLibraryStats(): Promise<LibraryStatsDTO> {
+    return new GetLibraryStatsController(this.queryRepository!).execute()
+  }
+
+  async listFailedRecordings(limit?: number): Promise<RecordingDTO[]> {
+    return new ListFailedRecordingsController(this.queryRepository!).execute(limit)
+  }
+
+  async getOwnerUsage(ownerIds: string[]): Promise<OwnerUsageDTO[]> {
+    return new GetOwnerUsageController(this.queryRepository!).execute(ownerIds)
   }
 
   async getRecording(recordingId: string, ownerId: string): Promise<RecordingDTO> {

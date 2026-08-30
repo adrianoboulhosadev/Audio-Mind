@@ -2,6 +2,8 @@ import {
   Recording,
   RecordingDTO,
   RecordingQueryRepository,
+  LibraryStatsDTO,
+  OwnerUsageDTO,
   RecordingKind,
   RecordingRepository,
   RecordingSource,
@@ -110,6 +112,37 @@ export default class RecordingRepositoryInMemory
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit)
       .map((row) => ({ ...row }))
+  }
+
+  // The SYSTEM reads of the admin screen: no owner anywhere in them.
+  async statsQuery(): Promise<LibraryStatsDTO> {
+    const byStatus = { pending: 0, transcribing: 0, summarizing: 0, ready: 0, failed: 0 }
+    for (const row of this.rows) byStatus[row.status] += 1
+
+    return {
+      byStatus,
+      total: this.rows.length,
+      storageBytes: this.rows.reduce((sum, row) => sum + row.sizeBytes, 0),
+    }
+  }
+
+  async listFailedQuery(limit: number): Promise<RecordingDTO[]> {
+    return this.rows
+      .filter((row) => row.status === 'failed')
+      .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
+      .slice(0, limit)
+      .map((row) => ({ ...row }))
+  }
+
+  async usageByOwnersQuery(ownerIds: string[]): Promise<OwnerUsageDTO[]> {
+    return ownerIds.map((ownerId) => {
+      const owned = this.rows.filter((row) => row.ownerId === ownerId)
+      return {
+        ownerId,
+        recordings: owned.length,
+        storageBytes: owned.reduce((sum, row) => sum + row.sizeBytes, 0),
+      }
+    })
   }
 
   async findByIdQuery(id: string): Promise<RecordingDTO | null> {
