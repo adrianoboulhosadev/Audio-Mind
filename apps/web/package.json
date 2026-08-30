@@ -15,6 +15,7 @@
     "@recording/adapters": "*",
     "@summary/adapters": "*",
     "@tanstack/react-query": "^5.62.0",
+    "@task/adapters": "*",
     "@transcription/adapters": "*",
     "axios": "^1.7.9",
     "lucide-react": "^1.35.0",

@@ -37,6 +37,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   EMPTY_SUMMARY: 'O modelo não conseguiu resumir esse áudio.',
   PDF_NOT_AVAILABLE: 'O PDF desse resumo ainda não foi gerado.',
 
+  // task
+  TASK_NOT_FOUND: 'Tarefa não encontrada.',
+
   // notification
   NOTIFICATION_NOT_FOUND: 'Notificação não encontrada.',
 }

@@ -1,6 +1,7 @@
 /** Route -> the title shown in the header. A map, so a new screen is one line. */
 export const SCREEN_TITLES: Record<string, string> = {
   '/recordings': 'Meus áudios',
+  '/tasks': 'Tarefas',
   '/notifications': 'Notificações',
   '/profile': 'Perfil',
 }

@@ -96,6 +96,7 @@ export default function ProfilePage() {
         <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-xs leading-relaxed text-muted">
           <li>seus áudios (os gravados aqui e os enviados por você);</li>
           <li>as transcrições, os resumos e os PDFs gerados a partir deles;</li>
+          <li>as tarefas tiradas desses resumos, feitas ou pendentes;</li>
           <li>seus avisos da caixa de entrada;</li>
           <li>seu cadastro — nome, e-mail e senha — e todas as sessões abertas.</li>
         </ul>
@@ -131,7 +132,7 @@ export default function ProfilePage() {
       <ConfirmDialog
         open={confirming}
         title="Excluir sua conta e todos os seus dados?"
-        description="Seus áudios, transcrições, resumos, PDFs e avisos serão apagados junto com o cadastro. É definitivo — não temos como recuperar depois."
+        description="Seus áudios, transcrições, resumos, PDFs, tarefas e avisos serão apagados junto com o cadastro. É definitivo — não temos como recuperar depois."
         confirmLabel={deleting ? 'Excluindo…' : 'Excluir tudo'}
         onConfirm={deleteAccount}
         onCancel={closeConfirm}
