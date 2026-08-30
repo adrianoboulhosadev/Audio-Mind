@@ -1,0 +1,6 @@
+export { default as AddAnnotationController } from './add-annotation-controller'
+export { default as EditAnnotationNoteController } from './edit-annotation-note-controller'
+export { default as DeleteAnnotationController } from './delete-annotation-controller'
+export { default as ListRecordingAnnotationsController } from './list-recording-annotations-controller'
+export { default as ListMyAnnotationsController } from './list-my-annotations-controller'
+export { default as DeleteRecordingAnnotationsController } from './delete-recording-annotations-controller'
