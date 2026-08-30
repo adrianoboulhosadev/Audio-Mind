@@ -188,3 +188,28 @@ model ShareLink {
   @@index([recordingId])
   @@map("share_links")
 }
+
+// --- annotation ----------------------------------------------------------------
+
+// A point in a recording somebody wanted to come back to, with or without
+// something written about it — a "marcador" and an "anotação" are the same row,
+// the difference is whether `note` is filled in.
+//
+// The anchor is the TIME and not a transcript segment, which is what makes a
+// mark survive re-processing: the audio does not change, so second 412 is still
+// second 412 even when a better model redraws the segments around it. Both FKs
+// are LOGICAL. No unique index on (recording, second): two marks on the same
+// second are two thoughts, not a mistake.
+model Annotation {
+  id          String   @id @default(uuid())
+  ownerId     String   @map("owner_id")
+  recordingId String   @map("recording_id")
+  atSeconds   Int      @map("at_seconds")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([recordingId, atSeconds])
+  @@index([ownerId, createdAt])
+  @@map("annotations")
+}
