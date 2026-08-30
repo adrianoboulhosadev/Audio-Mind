@@ -1,9 +1,8 @@
 import { Controller, Get, Param, Req, Res, UseGuards } from '@nestjs/common'
 import { Request, Response } from 'express'
-import { createReadStream } from 'fs'
-import { stat } from 'fs/promises'
 import { RecordingFacade } from '@recording/adapters'
 import { resolveUploadPath } from '../upload/uploads.config'
+import { streamAudioFile } from './audio-response'
 import { AudioAccessGuard, RequestWithAudioUser } from './audio-access.guard'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
 
@@ -19,7 +18,9 @@ import { PrismaRecordingRepository } from './prisma-recording-repository'
  * file before it can play a second of it, which is what the front used to do.
  * With it, pressing play on an hour-long recording starts in a moment, and
  * jumping to a line of the transcript fetches only the bytes around that
- * moment.
+ * moment. How the bytes travel lives in `streamAudioFile`, shared with the
+ * share-link route — what differs between the two is the authorization, not the
+ * 206.
  */
 @Controller('recording/stream')
 export class RecordingStreamController {
@@ -36,57 +37,10 @@ export class RecordingStreamController {
       id,
       ownerId,
     )
-    const path = resolveUploadPath(recording.audioUrl)
-    const { size } = await stat(path)
 
-    response.setHeader('Content-Type', recording.mimeType)
-    // Without this the browser never even TRIES a range request.
-    response.setHeader('Accept-Ranges', 'bytes')
-    // The bytes are private: no shared cache may keep a copy.
-    response.setHeader('Cache-Control', 'private, max-age=0, no-store')
-
-    const range = parseRange(request.headers.range, size)
-
-    if (range === 'invalid') {
-      response.status(416).setHeader('Content-Range', `bytes */${size}`)
-      response.end()
-      return
-    }
-
-    if (!range) {
-      response.setHeader('Content-Length', size)
-      createReadStream(path).pipe(response)
-      return
-    }
-
-    response.status(206)
-    response.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${size}`)
-    response.setHeader('Content-Length', range.end - range.start + 1)
-    createReadStream(path, { start: range.start, end: range.end }).pipe(response)
+    await streamAudioFile(request, response, {
+      path: resolveUploadPath(recording.audioUrl),
+      mimeType: recording.mimeType,
+    })
   }
-}
-
-/**
- * `bytes=start-end`, the only form browsers send for media. A missing end means
- * "to the last byte"; a missing start (`bytes=-500`) means the last N bytes,
- * which is what a player asks for when it goes looking for a container's index
- * at the end of the file.
- */
-function parseRange(
-  header: string | undefined,
-  size: number,
-): { start: number; end: number } | null | 'invalid' {
-  if (!header) return null
-
-  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim())
-  if (!match) return 'invalid'
-
-  const [, rawStart, rawEnd] = match
-  if (!rawStart && !rawEnd) return 'invalid'
-
-  const start = rawStart ? Number(rawStart) : Math.max(size - Number(rawEnd), 0)
-  const end = rawStart ? Math.min(rawEnd ? Number(rawEnd) : size - 1, size - 1) : size - 1
-
-  if (start > end || start >= size) return 'invalid'
-  return { start, end }
 }

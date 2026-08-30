@@ -5,6 +5,7 @@ import { DbModule } from './db/db.module'
 import { HealthModule } from './health/health.module'
 import { NotificationModule } from './notification/notification.module'
 import { RecordingModule } from './recording/recording.module'
+import { SharingModule } from './sharing/sharing.module'
 import { SummaryModule } from './summary/summary.module'
 import { TaskModule } from './task/task.module'
 import { TranscriptionModule } from './transcription/transcription.module'
@@ -22,6 +23,7 @@ import { UserModule } from './user/user.module'
     RecordingModule,
     TranscriptionModule,
     SummaryModule,
+    SharingModule,
     TaskModule,
     NotificationModule,
   ],

@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common'
 import { unlink } from 'fs/promises'
 import { RecordingFacade } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
+import { ShareFacade } from '@sharing/adapters'
 import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { resolveUploadPath } from '../upload/uploads.config'
 import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
 import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
+import { PrismaShareLinkRepository } from '../sharing/prisma-share-link-repository'
 import { PrismaTaskRepository } from '../task/prisma-task-repository'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
 
@@ -30,6 +32,7 @@ export class RecordingEraser {
     private readonly transcriptionRepository: PrismaTranscriptionRepository,
     private readonly summaryRepository: PrismaSummaryRepository,
     private readonly taskRepository: PrismaTaskRepository,
+    private readonly shareLinkRepository: PrismaShareLinkRepository,
   ) {}
 
   /**
@@ -43,6 +46,11 @@ export class RecordingEraser {
     const summary = await new SummaryFacade(undefined, this.summaryRepository)
       .getSummary(recordingId)
       .catch(() => null)
+
+    // The share links go FIRST of all: everything below stops existing in a
+    // moment, and a live public URL pointing at it is the one leftover that
+    // would still answer.
+    await new ShareFacade(this.shareLinkRepository).deleteRecordingShareLinks(recordingId)
 
     // The tasks go before the summary they came out of, for the same reason
     // everything else here is ordered: what is derived leaves first, so a

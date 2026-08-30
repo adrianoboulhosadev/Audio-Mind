@@ -16,6 +16,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@notification/adapters": "*",
     "@recording/adapters": "*",
+    "@sharing/adapters": "*",
     "@summary/adapters": "*",
     "@task/adapters": "*",
     "@transcription/adapters": "*",

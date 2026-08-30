@@ -5,6 +5,7 @@ import { DbModule } from '../db/db.module'
 import { NotificationStoreModule } from '../notification/notification-store.module'
 import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
 import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
+import { ShareStoreModule } from '../sharing/share-store.module'
 import { TaskStoreModule } from '../task/task-store.module'
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
@@ -14,7 +15,7 @@ import { RecordingEraser } from './recording-eraser'
 import { RecordingStreamController } from './recording-stream.controller'
 
 @Module({
-  imports: [DbModule, AuthModule, NotificationStoreModule, TaskStoreModule],
+  imports: [DbModule, AuthModule, NotificationStoreModule, TaskStoreModule, ShareStoreModule],
   controllers: [RecordingController, RecordingStreamController],
   providers: [
     PrismaRecordingRepository,
