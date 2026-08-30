@@ -5,6 +5,7 @@ import { DbModule } from '../db/db.module'
 import { NotificationStoreModule } from '../notification/notification-store.module'
 import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
 import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
+import { TaskStoreModule } from '../task/task-store.module'
 import { BullMqRecordingProcessingQueue } from './bullmq-recording-processing-queue'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
 import { AudioAccessGuard } from './audio-access.guard'
@@ -13,12 +14,13 @@ import { RecordingEraser } from './recording-eraser'
 import { RecordingStreamController } from './recording-stream.controller'
 
 @Module({
-  imports: [DbModule, AuthModule, NotificationStoreModule],
+  imports: [DbModule, AuthModule, NotificationStoreModule, TaskStoreModule],
   controllers: [RecordingController, RecordingStreamController],
   providers: [
     PrismaRecordingRepository,
-    // The delete cascade is cross-context and lives in the eraser, so it needs
-    // both derived repositories here.
+    // The delete cascade is cross-context and lives in the eraser, so every
+    // derived repository it touches has to be reachable from here (the tasks'
+    // one comes in through TaskStoreModule).
     PrismaTranscriptionRepository,
     PrismaSummaryRepository,
     RecordingEraser,

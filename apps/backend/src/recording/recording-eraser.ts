@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common'
 import { unlink } from 'fs/promises'
 import { RecordingFacade } from '@recording/adapters'
 import { SummaryFacade } from '@summary/adapters'
+import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { resolveUploadPath } from '../upload/uploads.config'
 import { PrismaSummaryRepository } from '../summary/prisma-summary-repository'
 import { PrismaTranscriptionRepository } from '../transcription/prisma-transcription-repository'
+import { PrismaTaskRepository } from '../task/prisma-task-repository'
 import { PrismaRecordingRepository } from './prisma-recording-repository'
 
 /** What the read side returns in one query, at most (see ListMyRecordingsQuery). */
@@ -27,6 +29,7 @@ export class RecordingEraser {
     private readonly recordingRepository: PrismaRecordingRepository,
     private readonly transcriptionRepository: PrismaTranscriptionRepository,
     private readonly summaryRepository: PrismaSummaryRepository,
+    private readonly taskRepository: PrismaTaskRepository,
   ) {}
 
   /**
@@ -41,6 +44,10 @@ export class RecordingEraser {
       .getSummary(recordingId)
       .catch(() => null)
 
+    // The tasks go before the summary they came out of, for the same reason
+    // everything else here is ordered: what is derived leaves first, so a
+    // failure halfway never strands a row behind an id nobody can resolve.
+    await new TaskFacade(this.taskRepository).deleteRecordingTasks(recordingId)
     await new TranscriptionFacade(this.transcriptionRepository).deleteTranscription(recordingId)
     await new SummaryFacade(this.summaryRepository).deleteSummary(recordingId)
     await recordings.deleteRecording(recordingId, ownerId)

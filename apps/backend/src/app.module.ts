@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module'
 import { NotificationModule } from './notification/notification.module'
 import { RecordingModule } from './recording/recording.module'
 import { SummaryModule } from './summary/summary.module'
+import { TaskModule } from './task/task.module'
 import { TranscriptionModule } from './transcription/transcription.module'
 import { UploadModule } from './upload/upload.module'
 import { UserModule } from './user/user.module'
@@ -21,6 +22,7 @@ import { UserModule } from './user/user.module'
     RecordingModule,
     TranscriptionModule,
     SummaryModule,
+    TaskModule,
     NotificationModule,
   ],
 })

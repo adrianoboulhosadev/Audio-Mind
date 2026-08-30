@@ -17,6 +17,7 @@
     "@notification/adapters": "*",
     "@recording/adapters": "*",
     "@summary/adapters": "*",
+    "@task/adapters": "*",
     "@transcription/adapters": "*",
     "bcryptjs": "2.4.3",
     "bullmq": "^5.34.0",
