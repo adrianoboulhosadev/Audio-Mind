@@ -1,4 +1,4 @@
-import type { RecordingSource } from '@recording/core'
+import type { RecordingKind, RecordingSource } from '@recording/core'
 
 /**
  * The bytes are NOT in this payload: the file goes up first through
@@ -11,6 +11,9 @@ import type { RecordingSource } from '@recording/core'
  */
 export interface UploadRecordingInput {
   title: string
+  /** Which summary template to use. Absent (or unknown) reads as the generic
+   * one — the domain is fail-closed about it. */
+  kind?: RecordingKind
   source: RecordingSource
   audioUrl: string
   mimeType: string
@@ -20,4 +23,8 @@ export interface UploadRecordingInput {
 
 export interface RenameRecordingInput {
   title: string
+}
+
+export interface ChangeRecordingKindInput {
+  kind: RecordingKind
 }

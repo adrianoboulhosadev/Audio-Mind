@@ -4,6 +4,7 @@ export { default as ListRecordingsByIdsController } from './list-recordings-by-i
 export { default as SearchMyRecordingsController } from './search-my-recordings-controller'
 export { default as GetRecordingController } from './get-recording-controller'
 export { default as RenameRecordingController } from './rename-recording-controller'
+export { default as ChangeRecordingKindController } from './change-recording-kind-controller'
 export { default as DeleteRecordingController } from './delete-recording-controller'
 export { default as RetryRecordingController } from './retry-recording-controller'
 export { default as GetRecordingForProcessingController } from './get-recording-for-processing-controller'

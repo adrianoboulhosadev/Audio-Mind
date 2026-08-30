@@ -1,11 +1,20 @@
 import { UseCase, EventPublisher } from 'shared'
-import { AudioAllowance, Recording, RecordingSource, RecordingUploaded } from '../model'
+import {
+  AudioAllowance,
+  Recording,
+  RecordingKind,
+  RecordingSource,
+  RecordingUploaded,
+} from '../model'
 import { RecordingProcessingQueue, RecordingRepository } from '../providers'
 
 interface Input {
   /** Resolved from the JWT at the HTTP boundary — never from the body (anti-IDOR). */
   ownerId: string
   title: string
+  /** Which summary template to use. Fail-closed in the entity: absent or
+   * unknown reads as the generic one. */
+  kind?: RecordingKind
   source: RecordingSource
   /** Relative path returned by POST /upload/audios — the bytes are already on
    * disk by the time this runs (same two-step shape the front uses everywhere). */
@@ -40,6 +49,7 @@ export default class UploadRecording implements UseCase<Input, void> {
     const recording = new Recording({
       ownerId: input.ownerId,
       title: input.title,
+      kind: input.kind,
       source: input.source,
       audioUrl: input.audioUrl,
       mimeType: input.mimeType,

@@ -9,6 +9,7 @@ import { EventPublisher } from 'shared'
 import {
   AdvanceRecordingController,
   DeleteRecordingController,
+  ChangeRecordingKindController,
   GetRecordingController,
   GetRecordingForProcessingController,
   ListMyRecordingsController,
@@ -19,7 +20,7 @@ import {
   RetryRecordingController,
   UploadRecordingController,
 } from '../controllers'
-import { RenameRecordingInput, UploadRecordingInput } from '../@types'
+import { ChangeRecordingKindInput, RenameRecordingInput, UploadRecordingInput } from '../@types'
 
 /**
  * Single entry point the apps call — the NestJS backend for everything the user
@@ -88,6 +89,16 @@ export default class RecordingFacade {
     input: RenameRecordingInput,
   ): Promise<void> {
     await new RenameRecordingController(this.repository!).execute(recordingId, ownerId, input)
+  }
+
+  /** Which summary template this audio gets. Takes effect on the NEXT run —
+   * the screen offers the reprocess button right next to it. */
+  async changeRecordingKind(
+    recordingId: string,
+    ownerId: string,
+    input: ChangeRecordingKindInput,
+  ): Promise<void> {
+    await new ChangeRecordingKindController(this.repository!).execute(recordingId, ownerId, input)
   }
 
   async deleteRecording(recordingId: string, ownerId: string): Promise<void> {

@@ -2,6 +2,7 @@ import {
   Recording,
   RecordingDTO,
   RecordingQueryRepository,
+  RecordingKind,
   RecordingRepository,
   RecordingSource,
   RecordingStatus,
@@ -16,6 +17,7 @@ interface RecordingRow {
   id: string
   ownerId: string
   title: string
+  kind: RecordingKind
   source: RecordingSource
   audioUrl: string
   mimeType: string
@@ -37,6 +39,7 @@ export default class RecordingRepositoryInMemory
       id: recording.id.value,
       ownerId: recording.ownerId,
       title: recording.title.value,
+      kind: recording.kind,
       source: recording.source,
       audioUrl: recording.audio.url,
       mimeType: recording.audio.mimeType,

@@ -1,3 +1,4 @@
+import { RecordingKind } from './recording-kind'
 import { RecordingSource, RecordingStatus } from './recording'
 
 /**
@@ -10,6 +11,7 @@ export interface RecordingDTO {
   id: string
   ownerId: string
   title: string
+  kind: RecordingKind
   source: RecordingSource
   audioUrl: string
   mimeType: string

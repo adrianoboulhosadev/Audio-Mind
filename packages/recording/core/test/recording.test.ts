@@ -1,5 +1,5 @@
 import { Errors } from 'shared'
-import { Recording, RecordingFailed, RecordingReady, RecordingTitle } from '../src'
+import { Recording, RecordingFailed, RecordingReady, RecordingTitle, toRecordingKind } from '../src'
 
 function build(overrides: Record<string, unknown> = {}): Recording {
   return new Recording({
@@ -165,5 +165,34 @@ describe('Recording', () => {
     expect(() => recording.rename('')).toThrow(
       expect.objectContaining({ code: Errors.REQUIRED_FIELD }),
     )
+  })
+})
+
+describe('Recording.kind (o template do resumo)', () => {
+  it('sem tipo, é o genérico', () => {
+    expect(build().kind).toBe('other')
+  })
+
+  it('tipo desconhecido lê como genérico — FAIL-CLOSED', () => {
+    expect(build({ kind: 'reuniao-secreta' as never }).kind).toBe('other')
+    expect(toRecordingKind('qualquer coisa')).toBe('other')
+    expect(toRecordingKind(undefined)).toBe('other')
+    expect(toRecordingKind('class')).toBe('class')
+  })
+
+  it('trocar o tipo é permitido depois do upload, em qualquer estágio', () => {
+    const recording = build()
+    recording.startTranscription()
+    recording.changeKind('medical')
+
+    expect(recording.kind).toBe('medical')
+  })
+
+  it('trocar pro mesmo tipo não mexe no updatedAt', () => {
+    const recording = build({ kind: 'class' })
+    const before = recording.updatedAt
+    recording.changeKind('class')
+
+    expect(recording.updatedAt).toBe(before)
   })
 })

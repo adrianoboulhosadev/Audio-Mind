@@ -1,5 +1,6 @@
 import { AggregateRoot, ConflictError, EntityProps, Errors, ValidationError } from 'shared'
 import { AudioAllowance, AudioFile } from './audio-file'
+import { RecordingKind, toRecordingKind } from './recording-kind'
 import { RecordingTitle } from './recording-title'
 import { RecordingFailed, RecordingReady } from './events'
 
@@ -24,6 +25,10 @@ export interface RecordingProps extends EntityProps {
   /** Logical FK to the user. Recording owns no identity. */
   ownerId?: string
   title?: string
+  /** What kind of audio it is — it picks the summary TEMPLATE. Unknown (or
+   * absent, which is every row that existed before this) reads as the generic
+   * one. */
+  kind?: RecordingKind
   source?: RecordingSource
   audioUrl?: string
   mimeType?: string
@@ -59,6 +64,7 @@ export class Recording extends AggregateRoot<Recording, RecordingProps> {
   readonly audio: AudioFile
   readonly createdAt: Date
   title: RecordingTitle
+  kind: RecordingKind
   status: RecordingStatus
   failureReason: string | null
   updatedAt: Date
@@ -70,6 +76,7 @@ export class Recording extends AggregateRoot<Recording, RecordingProps> {
 
     this.ownerId = ownerId
     this.title = new RecordingTitle(props.title)
+    this.kind = toRecordingKind(props.kind)
     this.source = props.source && RECORDING_SOURCES.includes(props.source) ? props.source : 'upload'
     this.audio = new AudioFile({
       url: props.audioUrl,
@@ -103,6 +110,22 @@ export class Recording extends AggregateRoot<Recording, RecordingProps> {
    * its format and its duration are what was actually recorded. */
   rename(title: string): void {
     this.title = new RecordingTitle(title)
+    this.touch()
+  }
+
+  /**
+   * Says what kind of audio this is, which is what decides the summary TEMPLATE.
+   *
+   * Editable after the upload, unlike everything else about the file, because
+   * getting it wrong is easy and the cost of being stuck with it is a summary
+   * shaped for the wrong thing. It only affects the NEXT run — the screen says
+   * so and offers to process again, which is the button that already exists.
+   */
+  changeKind(kind: RecordingKind): void {
+    const next = toRecordingKind(kind)
+    if (next === this.kind) return
+
+    this.kind = next
     this.touch()
   }
 

@@ -4,6 +4,7 @@ export { default as SearchMyRecordingsQuery } from './search-my-recordings-query
 export { default as GetRecordingQuery } from './get-recording-query'
 export { default as ListRecordingsByIdsQuery } from './list-recordings-by-ids-query'
 export { default as RenameRecording } from './rename-recording'
+export { default as ChangeRecordingKind } from './change-recording-kind'
 export { default as DeleteRecording } from './delete-recording'
 export { default as RetryRecording } from './retry-recording'
 export { default as GetRecordingForProcessingQuery } from './get-recording-for-processing-query'
