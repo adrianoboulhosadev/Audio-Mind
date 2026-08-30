@@ -20,3 +20,13 @@ export interface ChangePasswordInput {
 export interface UpdateProfileInput {
   name?: string | null
 }
+
+/**
+ * What an ADMINISTRATOR changes about somebody else's account. Both fields are
+ * optional so one screen can flip either without touching the other; the target
+ * user is in the path, and who is doing it comes from the JWT — never from here.
+ */
+export interface SetUserAccessInput {
+  role?: string
+  active?: boolean
+}

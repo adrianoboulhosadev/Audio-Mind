@@ -1,11 +1,14 @@
 /**
- * What the identity is allowed to do. Deliberately just two values: this app has
- * no admin area, no permission matrix and no invitation flow — the only thing a
- * role decides today is HOW BIG an audio its owner may upload.
+ * What the identity is allowed to do. Deliberately just two values: no
+ * permission matrix and no invitation flow. A role decides two things — how big
+ * an audio its owner may upload, and whether they can open the admin screen.
  *
- * There is no way to become an admin through the app, and that is the design:
- * promotion is an UPDATE on the column, done by hand by whoever owns the
- * database. A rare, deliberate act has no business being a button.
+ * Promotion IS reachable from the app now (an admin promotes somebody on
+ * /admin), which it deliberately was not before: it used to be a hand-run UPDATE
+ * precisely because there was nowhere to see who already had it. What has not
+ * changed is that the FIRST admin is still made by hand — there is no bootstrap
+ * flow, and an app that can create its own first administrator is an app anyone
+ * can become administrator of.
  */
 export type UserRole = 'user' | 'admin'
 

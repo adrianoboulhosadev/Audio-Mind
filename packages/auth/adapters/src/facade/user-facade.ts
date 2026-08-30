@@ -5,6 +5,7 @@ import {
   JwtProvider,
   JwtTokens,
   UserDTO,
+  UserStatsDTO,
   AuthSessionRepository,
 } from '@auth/core'
 import { EventPublisher } from 'shared'
@@ -15,6 +16,9 @@ import {
   LogoutUserController,
   ChangePasswordController,
   DeleteUserController,
+  GetUserStatsController,
+  ListUsersController,
+  SetUserAccessController,
   FindUserByIdController,
   UpdateProfileController,
 } from '../controllers'
@@ -23,6 +27,7 @@ import {
   LoginUserInput,
   ChangePasswordInput,
   UpdateProfileInput,
+  SetUserAccessInput,
 } from '../@types'
 
 /**
@@ -82,6 +87,28 @@ export default class UserFacade {
 
   async deleteUser(userId: string): Promise<void> {
     await new DeleteUserController(this.userRepository!, this.sessionRepository!).execute(userId)
+  }
+
+  /**
+   * ADMIN: changes somebody else's role or whether they can log in. Never the
+   * caller's own account, and never the erasure path — see SetUserAccess.
+   */
+  async setUserAccess(actorId: string, userId: string, input: SetUserAccessInput): Promise<void> {
+    await new SetUserAccessController(this.userRepository!, this.sessionRepository).execute(
+      actorId,
+      userId,
+      input,
+    )
+  }
+
+  /** ADMIN: every account, capped and optionally filtered by name/e-mail. */
+  async listUsers(term?: string, limit?: number): Promise<UserDTO[]> {
+    return new ListUsersController(this.userQueryRepository!).execute(term, limit)
+  }
+
+  /** ADMIN: totals of the user base. */
+  async getUserStats(): Promise<UserStatsDTO> {
+    return new GetUserStatsController(this.userQueryRepository!).execute()
   }
 
   async findUserById(id: string): Promise<UserDTO> {

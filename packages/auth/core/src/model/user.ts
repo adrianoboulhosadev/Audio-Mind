@@ -28,9 +28,9 @@ export interface UserProps extends EntityProps {
 export class User extends AggregateRoot<User, UserProps> {
   readonly email: Email
   readonly password?: PasswordHash
-  readonly role: UserRole
   name: string | null
   active: boolean
+  role: UserRole
 
   constructor(props: UserProps) {
     super(props)
@@ -41,10 +41,20 @@ export class User extends AggregateRoot<User, UserProps> {
     this.role = toUserRole(props.role)
   }
 
-  /** The only thing the role decides today: how big an audio this identity may
-   * upload. See AudioFile.allowanceFor. */
   get isAdmin(): boolean {
     return this.role === 'admin'
+  }
+
+  /**
+   * Promotes or demotes. Read through `toUserRole`, so an unknown value coming
+   * from anywhere degrades to the ordinary user instead of handing out admin.
+   *
+   * It used to be a hand-run UPDATE and is now a button, which changes nothing
+   * about how rare the act is — what it changes is that the person doing it can
+   * see who already has it.
+   */
+  changeRole(role?: string | null): void {
+    this.role = toUserRole(role)
   }
 
   /** Display-only edit — never touches email/password. */
@@ -57,8 +67,20 @@ export class User extends AggregateRoot<User, UserProps> {
     return this.clone({ password: undefined })
   }
 
-  /** Soft-delete transition: the identity stays but can no longer authenticate. */
+  /**
+   * Closes the door without erasing anything: the identity stays, the audios
+   * stay, and the person can no longer authenticate. It is NOT what the profile
+   * screen offers — that one ERASES (LGPD). This is what an administrator does
+   * to somebody else, and the two must never be the same path.
+   */
   deactivate(): void {
     this.active = false
+  }
+
+  /** Opens it again. Deactivating is not a punishment that has to be permanent —
+   * and an account that cannot be reactivated would push an admin towards
+   * deleting instead, which destroys data. */
+  reactivate(): void {
+    this.active = true
   }
 }

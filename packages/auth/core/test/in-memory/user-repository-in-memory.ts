@@ -1,4 +1,11 @@
-import { UserRepository, UserQueryRepository, User, UserDTO, toUserRole } from '../../src'
+import {
+  UserRepository,
+  UserQueryRepository,
+  User,
+  UserDTO,
+  UserStatsDTO,
+  toUserRole,
+} from '../../src'
 
 /**
  * Simulates the database TABLE: a plain row with the infra columns (createdAt,
@@ -79,6 +86,13 @@ export default class UserRepositoryInMemory implements UserRepository, UserQuery
     if (row) row.active = false
   }
 
+  async updateAccess(id: string, access: { role: string; active: boolean }): Promise<void> {
+    const row = this.rows.find((current) => current.id === id)
+    if (!row) return
+    row.role = access.role
+    row.active = access.active
+  }
+
   async delete(id: string): Promise<void> {
     const index = this.rows.findIndex((current) => current.id === id)
     if (index >= 0) this.rows.splice(index, 1)
@@ -95,6 +109,31 @@ export default class UserRepositoryInMemory implements UserRepository, UserQuery
       role: toUserRole(row.role),
       createdAt: row.createdAt,
       lastLoginAt: row.lastLoginAt,
+    }
+  }
+
+  async listAllQuery(limit: number, term?: string): Promise<UserDTO[]> {
+    const lowered = term?.toLowerCase()
+    const matches = this.rows.filter(
+      (row) =>
+        !lowered ||
+        row.email.toLowerCase().includes(lowered) ||
+        (row.name ?? '').toLowerCase().includes(lowered),
+    )
+
+    return Promise.all(
+      matches
+        .sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())
+        .slice(0, limit)
+        .map((row) => this.findByIdQuery(row.id) as Promise<UserDTO>),
+    )
+  }
+
+  async statsQuery(): Promise<UserStatsDTO> {
+    return {
+      total: this.rows.length,
+      active: this.rows.filter((row) => row.active).length,
+      admins: this.rows.filter((row) => toUserRole(row.role) === 'admin').length,
     }
   }
 }
