@@ -60,6 +60,11 @@ export const Errors = {
   QUESTION_TOO_LONG: 'QUESTION_TOO_LONG',
   EMPTY_ANSWER: 'EMPTY_ANSWER',
 
+  // annotation — a mark (and maybe a note) at one second of a recording
+  ANNOTATION_NOT_FOUND: 'ANNOTATION_NOT_FOUND',
+  INVALID_ANNOTATION_TIME: 'INVALID_ANNOTATION_TIME',
+  ANNOTATION_NOTE_TOO_LONG: 'ANNOTATION_NOTE_TOO_LONG',
+
   // sharing — a public link to ONE recording's summary
   SHARE_LINK_NOT_FOUND: 'SHARE_LINK_NOT_FOUND',
   // Only ever answered to somebody who already holds a valid token: being told
