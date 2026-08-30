@@ -130,3 +130,27 @@ model Notification {
   @@index([userId, createdAt])
   @@map("notifications")
 }
+
+// --- task ----------------------------------------------------------------------
+
+// One thing the audio said somebody has to do — an action item promoted out of a
+// summary and given a life of its own.
+//
+// MATERIALIZED and not derived from the summary at read time: a task read out of
+// the summary would have nowhere to remember it was ticked, and processing the
+// recording again would silently un-tick everything. The unique pair
+// (recording_id, text) is what makes a re-run idempotent, exactly like the
+// inbox's triple. `owner_id` is a LOGICAL FK — it lives here so "everything I
+// still have to do" is ONE query instead of a join through the recordings.
+model Task {
+  id          String    @id @default(uuid())
+  ownerId     String    @map("owner_id")
+  recordingId String    @map("recording_id")
+  text        String
+  doneAt      DateTime? @map("done_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([recordingId, text])
+  @@index([ownerId, doneAt])
+  @@map("tasks")
+}
