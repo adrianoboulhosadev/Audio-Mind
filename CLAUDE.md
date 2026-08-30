@@ -32,7 +32,8 @@ Monorepo **Turborepo + npm workspaces** em TypeScript. Arquitetura **hexagonal (
 por bounded context**, com **modelagem RICA** (entidades com comportamento e invariantes + value
 objects; regras de negócio moram no modelo, não nos casos de uso).
 
-Contextos de domínio: `auth`, `recording`, `transcription`, `summary`, `task`, `notification`. O `auth` é a
+Contextos de domínio: `auth`, `recording`, `transcription`, `summary`, `task`, `sharing`,
+`notification`. O `auth` é a
 **referência canônica** de fiação (core → adapters → backend).
 
 Fluxo do produto: o usuário grava no navegador ou envia um arquivo → o backend guarda o áudio e
@@ -59,7 +60,7 @@ apps/
 ```
 
 Contextos e scopes: `@auth/*`, `@recording/*`, `@transcription/*`, `@summary/*`, `@task/*`,
-`@notification/*`. `core` e `adapters` são **pacotes separados**. Workspaces:
+`@sharing/*`, `@notification/*`. `core` e `adapters` são **pacotes separados**. Workspaces:
 `["apps/*","packages/shared","packages/database","packages/*/core","packages/*/adapters"]`.
 
 ## Modelagem rica (TRAVADA)
@@ -136,7 +137,8 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
 - **Fronteiras**: contextos se tocam **só por portas**, nunca import direto entre cores.
   Orquestração cross-context fica na camada de app. Limites: `auth`=identidade/credencial;
   `recording`=o áudio e o estágio do pipeline; `transcription`=o texto que o modelo ouviu;
-  `summary`=o que o LLM escreveu + o PDF; `task`=o que ficou pra fazer; `notification`=caixa de entrada (não conhece nenhum outro
+  `summary`=o que o LLM escreveu + o PDF; `task`=o que ficou pra fazer;
+  `sharing`=quem pode ver isso sem ter conta; `notification`=caixa de entrada (não conhece nenhum outro
   contexto — quem dispara é a camada de app).
 - **Dono é resolvido no app, sempre contra a `recording`**: `transcription` e `summary` **não sabem
   quem é dono de nada**. As rotas `GET /transcription/recording/:id` e `GET /summary/recording/:id`
@@ -154,8 +156,10 @@ O `model/` NÃO é anêmico. Regras vivem no modelo:
   conta que ainda funciona e pode tentar de novo.
 - **O cascade de uma gravação mora no `RecordingEraser`** (app layer), não no controller: as MESMAS
   etapas na MESMA ordem servem "excluir esse áudio" e "excluir minha conta". Uma segunda cópia da
-  ordem é uma segunda chance de esquecer o PDF no disco. A ordem é sempre **derivado primeiro**: tarefas,
-  transcrição, resumo, gravação e só então os arquivos em disco.
+  ordem é uma segunda chance de esquecer o PDF no disco. A ordem é sempre **derivado primeiro**: links de
+  compartilhamento, tarefas, transcrição, resumo, gravação e só então os arquivos em disco. Os links
+  vão na frente porque tudo abaixo deixa de existir num instante, e uma URL pública viva é a única
+  sobra que ainda responderia.
 - A biblioteca inteira sai **por páginas** de 100 (o teto do lado de leitura): cada passada apaga o
   que leu, então a próxima volta menor e o laço termina numa página vazia. Nada de inventar uma
   porta de listagem sem teto só pra isso.
@@ -402,6 +406,28 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   **O minuto em que a tarefa foi combinada NÃO é mostrado**, pelo mesmo motivo do timestamp no PDF:
   `action_items` são paráfrases, e casar cada uma com um segmento seria adivinhar um momento com
   cara de certeza.
+- **sharing** — quem pode ver um resumo **sem ter conta**. `ShareLink` + VOs `ShareToken`,
+  `ShareScope` e `ShareWindow`. Três coisas são **invariante, não configuração**: o link abre **UMA**
+  gravação, **sempre expira** e pode ser **revogado** a qualquer momento — e `isUsable()` é o único
+  lugar onde as três são decididas, pra nenhum chamador checar duas e esquecer a terceira.
+  - **Não existe link eterno** (`ShareWindow` = 24h/7d/30d, fail-closed pra a MAIS CURTA): o
+    resultado padrão de esquecer um link tem que ser ele parar de funcionar. Não é campo de data
+    livre porque um campo de data convida "31/12/2099".
+  - **O escopo é opt-in explícito**: o resumo sempre vai; transcrição e áudio só se marcados. Cada
+    palavra que alguém falou e a voz da pessoa não são a mesma coisa que "o resumo que eu escrevi".
+  - **`ShareToken` são dois uuid v4 sem hífen** (64 hex, ~244 bits do mesmo CSPRNG dos ids). Dois e
+    não um porque um uuid na URL parece id interno, e isso é **credencial**.
+  - **Revogar guarda a linha** (só apagar a GRAVAÇÃO apaga os links dela): o dono precisa poder ver
+    que o link existiu, foi aberto N vezes e foi cortado. Compartilhar de novo é link NOVO.
+  - **Conta aberturas, nunca quem abriu** — sem ip, sem user agent, sem identidade. O dono precisa
+    saber que está sendo usado pra decidir cortar; virar rastreador de quem recebeu seria coletar
+    dado pessoal que ninguém consentiu.
+  - **Expirado, revogado e inexistente respondem DIFERENTE** de propósito: só quem já tem um token
+    válido chega a ver "expirou"/"revogado", e saber qual é evita concluir que o app quebrou. Token
+    que não existe responde sempre a mesma coisa.
+  - O `PublicShareController` fica **FORA do `AuthMiddleware`** (é por classe), como o stream de
+    áudio e o SSE. A resposta pública é um **payload próprio**, não os DTOs das telas privadas: sem
+    dono, sem id de usuário, sem id de gravação, sem nome de modelo.
 - **notification** — caixa de entrada (sininho + tela `/notifications`). `Notification.for(input)`
   é um factory com `switch` sobre uma **união discriminada**, então nenhum caller inventa campo nem
   esquece o motivo de uma falha, e a copy fica numa decisão só em vez de espalhada por dois apps. O
@@ -427,6 +453,9 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
 - `transcription/recording/:id` (GET)
 - `summary/recording/:id` (GET), `summary/recording/:id/pdf` (GET, download) e
   `summary/recording/:id/ask` (POST — pergunta sobre o áudio, respondida na hora)
+- `share` (`POST /recording/:recordingId` [cria o link], `GET /` [`?recordingId=`, os links do dono],
+  `DELETE /:id` [revoga]) e `share/public/:token` (GET, **sem login** — o token é a autorização
+  inteira) + `share/public/:token/audio` (GET, **Range**, só se o link incluir o áudio)
 - `task` (`GET /` [`?status=pending|done|all`, `?limit=`; devolve `{ pendingCount, items }`, cada item
   com a tarefa e o título da gravação de onde saiu], `PATCH /:id` [`{ done }` — marca e desmarca])
 - `notification` (`GET /` [`?limit=`, devolve `{ unreadCount, items }`], `POST /read-all`,
@@ -582,8 +611,11 @@ validação de UI simples).
   colocava o app inteiro atrás de um hambúrguer. O que os dois precisam concordar (a lista de telas)
   é compartilhado como DADO (`sidebar/data/nav-items.ts`), não como componente. A barra leva
   `pb-[env(safe-area-inset-bottom)]` e o `main` leva `pb-24 lg:pb-6`, senão ela cobre o fim da página.
-- **Route groups por acesso**: `(public)` (login/register) e `(private)`. Guard no `layout.tsx` do
-  grupo, nunca por página.
+- **Route groups por acesso**: `(public)` (login/register), `(private)` e `(shared)` (a página de um
+  link compartilhado, `/s/:token`). Guard no `layout.tsx` do grupo, nunca por página — e o
+  `(shared)` **não tem guard nenhum**, de propósito: o token na URL é a autorização, e quem confere
+  é o backend. Ele é um grupo separado do `(public)` porque aquele redireciona quem já está logado e
+  espreme tudo num card estreito, e um resumo compartilhado é um DOCUMENTO.
 - **Ícones são do `lucide-react`** — antes eram SVG inline num mapa `ICONS`, o que parava de pagar
   assim que ação virou ícone em três telas. Ação só com ícone SEMPRE passa pelo `IconButton`, que
   carrega o rótulo como `aria-label` E como tooltip (a mesma string, então não divergem). O tooltip é
