@@ -60,6 +60,11 @@ export const Errors = {
   QUESTION_TOO_LONG: 'QUESTION_TOO_LONG',
   EMPTY_ANSWER: 'EMPTY_ANSWER',
 
+  // task — an action item promoted out of a summary, with a life of its own
+  TASK_NOT_FOUND: 'TASK_NOT_FOUND',
+  EMPTY_TASK: 'EMPTY_TASK',
+  TASK_TEXT_TOO_LONG: 'TASK_TEXT_TOO_LONG',
+
   // notification
   NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',
 } as const
