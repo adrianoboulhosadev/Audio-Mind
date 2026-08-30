@@ -3,6 +3,8 @@ import { Prisma } from 'database'
 import {
   Recording,
   RecordingDTO,
+  LibraryStatsDTO,
+  OwnerUsageDTO,
   RecordingQueryRepository,
   RecordingRepository,
   RecordingSource,
@@ -154,6 +156,54 @@ export class PrismaRecordingRepository implements RecordingRepository, Recording
       take: limit,
     })
     return rows.map((row) => this.toDTO(row))
+  }
+
+  /**
+   * SYSTEM reads: the whole installation, no owner. Only the admin routes call
+   * them (see the port for why they are separate methods).
+   */
+  async statsQuery(): Promise<LibraryStatsDTO> {
+    const [grouped, totals] = await Promise.all([
+      this.prisma.recording.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.recording.aggregate({ _sum: { sizeBytes: true }, _count: { _all: true } }),
+    ])
+
+    // Every status starts at zero: a status nobody is in right now is a real
+    // answer, and leaving it out would make the screen render a gap.
+    const byStatus = { pending: 0, transcribing: 0, summarizing: 0, ready: 0, failed: 0 }
+    for (const row of grouped) {
+      const status = row.status as keyof typeof byStatus
+      if (status in byStatus) byStatus[status] = row._count._all
+    }
+
+    return {
+      byStatus,
+      total: totals._count._all,
+      storageBytes: totals._sum.sizeBytes ?? 0,
+    }
+  }
+
+  async listFailedQuery(limit: number): Promise<RecordingDTO[]> {
+    const rows = await this.prisma.recording.findMany({
+      where: { status: 'failed' },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    })
+    return rows.map((row) => this.toDTO(row))
+  }
+
+  async usageByOwnersQuery(ownerIds: string[]): Promise<OwnerUsageDTO[]> {
+    const rows = await this.prisma.recording.groupBy({
+      by: ['ownerId'],
+      where: { ownerId: { in: ownerIds } },
+      _count: { _all: true },
+      _sum: { sizeBytes: true },
+    })
+    return rows.map((row) => ({
+      ownerId: row.ownerId,
+      recordings: row._count._all,
+      storageBytes: row._sum.sizeBytes ?? 0,
+    }))
   }
 
   async findByIdQuery(id: string): Promise<RecordingDTO | null> {

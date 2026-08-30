@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common'
-import { UserRepository, UserQueryRepository, User, UserDTO, toUserRole } from '@auth/adapters'
+import {
+  UserRepository,
+  UserQueryRepository,
+  User,
+  UserDTO,
+  UserStatsDTO,
+  toUserRole,
+} from '@auth/adapters'
 import { PrismaService } from '../db/prisma.service'
 
 // The columns the read side projects — the password is never among them.
@@ -78,6 +85,11 @@ export class PrismaUserRepository implements UserRepository, UserQueryRepository
     await this.prisma.user.update({ where: { id }, data: { active: false } })
   }
 
+  /** What an administrator changed about somebody else's access. */
+  async updateAccess(id: string, access: { role: string; active: boolean }): Promise<void> {
+    await this.prisma.user.update({ where: { id }, data: access })
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.user.delete({ where: { id } })
   }
@@ -89,5 +101,36 @@ export class PrismaUserRepository implements UserRepository, UserQueryRepository
     // UPDATE with a typo must read as an ordinary user, not as an unknown role
     // travelling through the app inside a UserDTO.
     return row ? { ...row, role: toUserRole(row.role) } : null
+  }
+
+  /**
+   * The ADMIN listing — the only read here that is not scoped to one person.
+   * `term` filters by name or e-mail (ILIKE, same reasoning as the search: no
+   * column, no index, and a user base this size answers instantly).
+   */
+  async listAllQuery(limit: number, term?: string): Promise<UserDTO[]> {
+    const rows = await this.prisma.user.findMany({
+      where: term
+        ? {
+            OR: [
+              { email: { contains: term, mode: 'insensitive' } },
+              { name: { contains: term, mode: 'insensitive' } },
+            ],
+          }
+        : undefined,
+      select: USER_DTO_SELECT,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+    return rows.map((row) => ({ ...row, role: toUserRole(row.role) }))
+  }
+
+  async statsQuery(): Promise<UserStatsDTO> {
+    const [total, active, admins] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { active: true } }),
+      this.prisma.user.count({ where: { role: 'admin' } }),
+    ])
+    return { total, active, admins }
   }
 }
