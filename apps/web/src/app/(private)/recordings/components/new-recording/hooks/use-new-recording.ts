@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { RecordingTitle, type RecordingKind, type RecordingSource } from '@recording/adapters'
 import type { RecordedAudio } from '@/components/audio-recorder/hooks/use-audio-recorder'
 import { formatBytes } from '@/lib/format'
+import { useSharedAudio } from './use-shared-audio'
 import { useUploadAllowance } from './use-upload-allowance'
 
 interface PickedAudio {
@@ -94,6 +95,20 @@ export function useNewRecording({ upload }: UseNewRecordingArgs) {
     setMode(next)
     setAudio(null)
   }, [])
+
+  // An audio shared into the app from another one lands in the composer exactly
+  // like a file picked from disk — the tab switches so the person SEES what
+  // arrived, instead of finding the recorder and wondering where their file
+  // went.
+  useSharedAudio(
+    useCallback(
+      (file: File) => {
+        setMode('upload')
+        onFilePicked(file)
+      },
+      [onFilePicked],
+    ),
+  )
 
   return {
     mode,
