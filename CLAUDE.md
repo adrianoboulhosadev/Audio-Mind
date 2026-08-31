@@ -767,11 +767,11 @@ validação de UI simples).
     conflitar num arquivo que ninguém queria sincronizar. Mesmo motivo dos `.env`.
   ⚠️ Em `listen 80` sem TLS o **login não persiste**: o cookie de refresh é `secure` e o navegador
   não guarda cookie `secure` em HTTP.
-- **As PORTAS publicadas no host vêm do `.env` da raiz** (`BACKEND_PORT`, `WEB_PORT`, `DB_PORT`,
-  `REDIS_PORT`), com o default no próprio `docker-compose.yml`. Quais portas estão livres é fato da
-  MÁQUINA, não do projeto: escritas dentro do compose, todo servidor que precisou mudar uma acabava
-  com um `docker-compose.yml` modificado que conflita em cada pull. **`BACKEND_PORT` e `WEB_PORT`
-  precisam bater com o que o Nginx faz `proxy_pass`** — divergir dá 502, que parece app derrubado.
+- **As portas publicadas no host estão escritas no `docker-compose.yml`** (5002 backend, 3004 front)
+  e **precisam bater com o `proxy_pass` do Nginx** — divergir dá 502, que parece app derrubado. Elas
+  não viraram variável de ambiente de propósito: existe UM servidor, e uma variável a mais só
+  espalharia o mesmo número por dois arquivos. O que muda em cada máquina (domínio, certificado) já
+  está fora do git, no `/etc/nginx/`.
 - **Antes de declarar pronto**:
   ```bash
   npx turbo run check-types test build

@@ -9,10 +9,9 @@
 #     sudo ln -s /etc/nginx/sites-available/audio-mind /etc/nginx/sites-enabled/
 #     sudo nginx -t && sudo systemctl reload nginx
 #
-# ⚠️ AS PORTAS AQUI TÊM QUE BATER com as que o compose publica no host, que vêm
-# do `.env` da raiz (BACKEND_PORT e WEB_PORT — veja o .env.example). Os defaults
-# abaixo são os do compose. Se elas divergirem, o Nginx responde 502 e parece
-# que o app caiu.
+# ⚠️ AS PORTAS AQUI TÊM QUE BATER com as que o `docker-compose.yml` publica no
+# host (hoje 5002 pro backend e 3004 pro front). Se divergirem, o Nginx responde
+# 502 e parece que o app caiu.
 #
 # Três coisas aqui NÃO são opcionais — cada uma é uma falha real que o tráfego
 # deste app encontra.
@@ -36,7 +35,7 @@ server {
     # the live push exists to remove. HTTP/1.1 + an empty Connection header is
     # what keeps the connection open at all.
     location = /api/notification/stream {
-        proxy_pass http://127.0.0.1:5001/notification/stream;
+        proxy_pass http://127.0.0.1:5002/notification/stream;
         proxy_http_version 1.1;
         proxy_set_header Connection '';
         proxy_set_header Host $host;
@@ -53,7 +52,7 @@ server {
     # for the file. `proxy_force_ranges` keeps ranges working even when the
     # upstream answer arrives without an Accept-Ranges Nginx trusts.
     location /api/recording/stream/ {
-        proxy_pass http://127.0.0.1:5001/recording/stream/;
+        proxy_pass http://127.0.0.1:5002/recording/stream/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Range $http_range;
@@ -66,7 +65,7 @@ server {
     # same reasoning as the block above, different authorization (the token in
     # the path instead of a capability in the query string).
     location /api/share/public/ {
-        proxy_pass http://127.0.0.1:5001/share/public/;
+        proxy_pass http://127.0.0.1:5002/share/public/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Range $http_range;
@@ -76,7 +75,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:5001/;
+        proxy_pass http://127.0.0.1:5002/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -85,7 +84,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:3003;
+        proxy_pass http://127.0.0.1:3004;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Upgrade $http_upgrade;
