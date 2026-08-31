@@ -14,7 +14,6 @@ services:
       # Bound to localhost only: reachable from the host itself (e.g. `psql`),
       # never from outside. Backend/worker reach this over the internal compose
       # network via the `db` hostname, not this port.
-      #
       # 5434/6381 e não 5433/6380: essas duas estavam ocupadas por outro projeto
       # na VPS. Só o lado do HOST muda — backend e worker falam com `db:5432` e
       # `redis:6379` pela rede interna do compose, e trocar ESSAS derrubaria a
@@ -74,6 +73,7 @@ services:
       # The first boot runs the migrations before serving; failing the check
       # while that happens would restart the container mid-migration.
       start_period: 60s
+      - '127.0.0.1:5002:5000'
     volumes:
       # The audio people upload and the PDFs the pipeline generates live on disk,
       # not in the database — WITHOUT this volume, recreating the container
