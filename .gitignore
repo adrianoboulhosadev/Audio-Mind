@@ -11,3 +11,9 @@ generated/
 
 # uploaded files (local static storage: audios + generated PDFs)
 apps/backend/uploads/
+
+# O nginx REAL do servidor. O repo versiona só o .example: o de verdade carrega
+# domínio, certificado e portas daquela máquina, então versioná-lo faz o servidor
+# e o git brigarem em cada pull por uma coisa que nunca deveria ser a mesma nos
+# dois lugares. Mesmo motivo dos .env.
+deploy/nginx.conf

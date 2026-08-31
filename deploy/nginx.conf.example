@@ -1,8 +1,21 @@
-# Reverse proxy for the VPS (Nginx running natively on the host, outside Docker).
-# Front and API on the SAME domain, with /api/* going to the backend.
+# EXEMPLO de reverse proxy pra VPS (Nginx nativo no host, fora do Docker).
+# Front e API no MESMO domínio, com /api/* indo pro backend.
 #
-# Three things here are NOT optional — each one is a real failure that this
-# app's traffic runs into.
+# É um EXEMPLO, e por isso termina em `.example`: o arquivo que vale é o de
+# `/etc/nginx/`, e ele carrega coisas que são do servidor e não do projeto —
+# domínio, certificado, portas. Copie e edite lá:
+#
+#     sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/audio-mind
+#     sudo ln -s /etc/nginx/sites-available/audio-mind /etc/nginx/sites-enabled/
+#     sudo nginx -t && sudo systemctl reload nginx
+#
+# ⚠️ AS PORTAS AQUI TÊM QUE BATER com as que o compose publica no host, que vêm
+# do `.env` da raiz (BACKEND_PORT e WEB_PORT — veja o .env.example). Os defaults
+# abaixo são os do compose. Se elas divergirem, o Nginx responde 502 e parece
+# que o app caiu.
+#
+# Três coisas aqui NÃO são opcionais — cada uma é uma falha real que o tráfego
+# deste app encontra.
 
 server {
     listen 80;
@@ -23,7 +36,7 @@ server {
     # the live push exists to remove. HTTP/1.1 + an empty Connection header is
     # what keeps the connection open at all.
     location = /api/notification/stream {
-        proxy_pass http://127.0.0.1:5000/notification/stream;
+        proxy_pass http://127.0.0.1:5001/notification/stream;
         proxy_http_version 1.1;
         proxy_set_header Connection '';
         proxy_set_header Host $host;
@@ -40,7 +53,7 @@ server {
     # for the file. `proxy_force_ranges` keeps ranges working even when the
     # upstream answer arrives without an Accept-Ranges Nginx trusts.
     location /api/recording/stream/ {
-        proxy_pass http://127.0.0.1:5000/recording/stream/;
+        proxy_pass http://127.0.0.1:5001/recording/stream/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Range $http_range;
@@ -53,7 +66,7 @@ server {
     # same reasoning as the block above, different authorization (the token in
     # the path instead of a capability in the query string).
     location /api/share/public/ {
-        proxy_pass http://127.0.0.1:5000/share/public/;
+        proxy_pass http://127.0.0.1:5001/share/public/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Range $http_range;
@@ -63,7 +76,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:5000/;
+        proxy_pass http://127.0.0.1:5001/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -72,7 +85,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3003;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Upgrade $http_upgrade;
@@ -81,7 +94,7 @@ server {
     }
 }
 
-# ⚠️ While this is `listen 80` without TLS, LOGIN DOES NOT PERSIST: the refresh
-# cookie is `secure` (NODE_ENV=production in the Dockerfile), and a browser does
-# not store a `secure` cookie over plain HTTP. Run certbot before using this for
-# real.
+# ⚠️ Enquanto for `listen 80` sem TLS, O LOGIN NÃO PERSISTE: o cookie de refresh
+# é `secure` (NODE_ENV=production no Dockerfile), e o navegador não guarda cookie
+# `secure` em HTTP puro. Rode o certbot antes de usar isso pra valer — ele
+# reescreve este bloco pra 443 e deixa o 80 só redirecionando.

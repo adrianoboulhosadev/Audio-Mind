@@ -757,11 +757,21 @@ validação de UI simples).
   existem porque o upload são DOIS requests de propósito, e quem fecha a aba no meio deixa um arquivo
   órfão. Conservador nessa ordem: só o que tem mais de **24h**, só o que não está no banco, e **toda
   remoção logada**. Errar aqui é apagar áudio de alguém, então ele prefere deixar lixo pra trás.
-- **Reverse proxy: `deploy/nginx.conf`** — `client_max_body_size` (o default de 1 MB dá 413 em
-  qualquer áudio), bloco próprio pro SSE com `proxy_buffering off` (com buffering o sininho parece
-  travado) e `X-Accel-Buffering: no` no próprio handler como cinto e suspensório.
+- **Reverse proxy: `deploy/nginx.conf.example`** — `client_max_body_size` (o default de 1 MB dá 413
+  em qualquer áudio), bloco próprio pro SSE com `proxy_buffering off` (com buffering o sininho parece
+  travado), blocos com `proxy_force_ranges on` pro streaming de áudio e pro áudio de link
+  compartilhado, e `X-Accel-Buffering: no` no próprio handler como cinto e suspensório.
+  - **É `.example` e o real é GITIGNORED** (`deploy/nginx.conf`). O arquivo que vale mora em
+    `/etc/nginx/` e carrega domínio, certificado e portas daquela máquina — coisas que nunca deveriam
+    ser iguais no repo e no servidor. Versionar o real é o que fazia cada `git pull` no servidor
+    conflitar num arquivo que ninguém queria sincronizar. Mesmo motivo dos `.env`.
   ⚠️ Em `listen 80` sem TLS o **login não persiste**: o cookie de refresh é `secure` e o navegador
   não guarda cookie `secure` em HTTP.
+- **As PORTAS publicadas no host vêm do `.env` da raiz** (`BACKEND_PORT`, `WEB_PORT`, `DB_PORT`,
+  `REDIS_PORT`), com o default no próprio `docker-compose.yml`. Quais portas estão livres é fato da
+  MÁQUINA, não do projeto: escritas dentro do compose, todo servidor que precisou mudar uma acabava
+  com um `docker-compose.yml` modificado que conflita em cada pull. **`BACKEND_PORT` e `WEB_PORT`
+  precisam bater com o que o Nginx faz `proxy_pass`** — divergir dá 502, que parece app derrubado.
 - **Antes de declarar pronto**:
   ```bash
   npx turbo run check-types test build

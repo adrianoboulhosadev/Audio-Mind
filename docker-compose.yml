@@ -14,7 +14,12 @@ services:
       # Bound to localhost only: reachable from the host itself (e.g. `psql`),
       # never from outside. Backend/worker reach this over the internal compose
       # network via the `db` hostname, not this port.
-      - '127.0.0.1:5433:5432'
+      #
+      # The HOST side comes from the root .env, with the default in the literal.
+      # It is a variable because which host ports are free is a fact about the
+      # MACHINE, not about the project — hardcoding it is what made the server's
+      # copy of this file diverge from the repo and conflict on every pull.
+      - '127.0.0.1:${DB_PORT:-5433}:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,7 +33,7 @@ services:
     container_name: audio-mind-redis
     restart: unless-stopped
     ports:
-      - '127.0.0.1:6380:6379'
+      - '127.0.0.1:${REDIS_PORT:-6380}:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -54,7 +59,10 @@ services:
       REDIS_URL: redis://redis:6379
       UPLOADS_DIR: /repo/apps/backend/uploads
     ports:
-      - '127.0.0.1:5001:5000'
+      # BACKEND_PORT must match what the reverse proxy proxies to (see
+      # deploy/nginx.conf.example) — if the two drift, Nginx answers 502 and it
+      # looks like the app went down.
+      - '127.0.0.1:${BACKEND_PORT:-5001}:5000'
     # Up is not the same as working: a backend that lost Postgres answers 500 to
     # everything while docker happily reports it as running. The check touches
     # the database (see the /health route).
@@ -118,7 +126,7 @@ services:
     container_name: audio-mind-web
     restart: unless-stopped
     ports:
-      - '127.0.0.1:3003:3000'
+      - '127.0.0.1:${WEB_PORT:-3003}:3000'
     depends_on:
       - backend
 
