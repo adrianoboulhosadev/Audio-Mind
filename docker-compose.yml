@@ -15,7 +15,11 @@ services:
       # never from outside. Backend/worker reach this over the internal compose
       # network via the `db` hostname, not this port.
       #
-      - '127.0.0.1:5433:5432'
+      # 5434/6381 e não 5433/6380: essas duas estavam ocupadas por outro projeto
+      # na VPS. Só o lado do HOST muda — backend e worker falam com `db:5432` e
+      # `redis:6379` pela rede interna do compose, e trocar ESSAS derrubaria a
+      # fila e o push do sininho.
+      - '127.0.0.1:5434:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -29,7 +33,7 @@ services:
     container_name: audio-mind-redis
     restart: unless-stopped
     ports:
-      - '127.0.0.1:6380:6379'
+      - '127.0.0.1:6381:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -56,7 +60,7 @@ services:
       UPLOADS_DIR: /repo/apps/backend/uploads
     ports:
       # ⚠️ A porta do HOST (5002) tem que bater com o que o Nginx faz proxy_pass
-      # (veja deploy/nginx.conf.example). Divergir dá 502, que parece app
+      # (veja deploy/nginx.conf). Divergir dá 502, que parece app
       # derrubado. A da DIREITA é interna do container e não muda.
       - '127.0.0.1:5002:5000'
     # Up is not the same as working: a backend that lost Postgres answers 500 to

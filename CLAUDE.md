@@ -767,11 +767,13 @@ validação de UI simples).
     este arquivo vira uma foto desatualizada.
   - **HTTP só redireciona pro 443.** Sem TLS o **login não persiste**: o cookie de refresh é `secure`
     e o navegador descarta cookie `secure` em HTTP puro.
-- **As portas publicadas no host estão escritas no `docker-compose.yml`** (5002 backend, 3004 front)
-  e **precisam bater com o `proxy_pass` do Nginx** — divergir dá 502, que parece app derrubado. Elas
-  não viraram variável de ambiente de propósito: existe UM servidor, e uma variável a mais só
-  espalharia o mesmo número por dois arquivos. O que muda em cada máquina (domínio, certificado) já
-  está fora do git, no `/etc/nginx/`.
+- **As portas publicadas no host estão escritas no `docker-compose.yml`** — 5002 backend, 3004 front,
+  5434 Postgres, 6381 Redis (essas duas fogem do padrão porque as originais estavam ocupadas por
+  outro projeto na VPS). As do backend e do front **precisam bater com o `proxy_pass` do Nginx**:
+  divergir dá 502, que parece app derrubado. Não viraram variável de ambiente de propósito — existe
+  UM servidor, e uma variável a mais só espalharia o mesmo número por dois arquivos.
+  ⚠️ Só o lado do HOST é isso. Backend e worker falam com `db:5432` e `redis:6379` pela rede interna
+  do compose; trocar os números da direita derruba a fila e o push do sininho.
 - **Antes de declarar pronto**:
   ```bash
   npx turbo run check-types test build
