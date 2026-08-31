@@ -757,16 +757,16 @@ validação de UI simples).
   existem porque o upload são DOIS requests de propósito, e quem fecha a aba no meio deixa um arquivo
   órfão. Conservador nessa ordem: só o que tem mais de **24h**, só o que não está no banco, e **toda
   remoção logada**. Errar aqui é apagar áudio de alguém, então ele prefere deixar lixo pra trás.
-- **Reverse proxy: `deploy/nginx.conf.example`** — `client_max_body_size` (o default de 1 MB dá 413
-  em qualquer áudio), bloco próprio pro SSE com `proxy_buffering off` (com buffering o sininho parece
+- **Reverse proxy: `deploy/nginx.conf`** — `client_max_body_size` (o default de 1 MB dá 413 em
+  qualquer áudio), bloco próprio pro SSE com `proxy_buffering off` (com buffering o sininho parece
   travado), blocos com `proxy_force_ranges on` pro streaming de áudio e pro áudio de link
   compartilhado, e `X-Accel-Buffering: no` no próprio handler como cinto e suspensório.
-  - **É `.example` e o real é GITIGNORED** (`deploy/nginx.conf`). O arquivo que vale mora em
-    `/etc/nginx/` e carrega domínio, certificado e portas daquela máquina — coisas que nunca deveriam
-    ser iguais no repo e no servidor. Versionar o real é o que fazia cada `git pull` no servidor
-    conflitar num arquivo que ninguém queria sincronizar. Mesmo motivo dos `.env`.
-  ⚠️ Em `listen 80` sem TLS o **login não persiste**: o cookie de refresh é `secure` e o navegador
-  não guarda cookie `secure` em HTTP.
+  - **É o ESPELHO do que roda em `/etc/nginx`**, com domínio e portas reais — não um template
+    genérico. Mudou aqui, copia pra lá e recarrega. O contrário também vale: o **certbot** edita o
+    arquivo de lá sozinho ao renovar o certificado, e o que ele mexer precisa voltar pra cá, senão
+    este arquivo vira uma foto desatualizada.
+  - **HTTP só redireciona pro 443.** Sem TLS o **login não persiste**: o cookie de refresh é `secure`
+    e o navegador descarta cookie `secure` em HTTP puro.
 - **As portas publicadas no host estão escritas no `docker-compose.yml`** (5002 backend, 3004 front)
   e **precisam bater com o `proxy_pass` do Nginx** — divergir dá 502, que parece app derrubado. Elas
   não viraram variável de ambiente de propósito: existe UM servidor, e uma variável a mais só
