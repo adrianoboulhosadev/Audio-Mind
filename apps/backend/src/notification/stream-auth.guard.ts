@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Request } from 'express'
 import { JwtPayload } from '@auth/adapters'
-import * as jwt from 'jsonwebtoken'
 import { Errors } from 'shared'
 import { PrismaService } from '../db/prisma.service'
+import { verifyAccessToken } from '../auth/verify-access-token'
 
 export interface RequestWithStreamUser extends Request {
   streamUserId: string
@@ -36,12 +36,11 @@ export class StreamAuthGuard implements CanActivate {
 
     if (typeof token !== 'string' || !token) this.refuse()
 
-    let payload: JwtPayload
-    try {
-      payload = jwt.verify(token as string, process.env.JWT_SECRET!) as JwtPayload
-    } catch {
-      this.refuse()
-    }
+    // The same check the AuthMiddleware makes, from the same function: a query
+    // string is an easier place to leak a token from, so this door must not be
+    // the laxer of the two. Only an `access` token opens a stream.
+    const payload: JwtPayload | null = verifyAccessToken(token as string)
+    if (!payload) this.refuse()
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload!.userId },
