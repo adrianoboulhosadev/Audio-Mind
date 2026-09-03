@@ -6,6 +6,7 @@ import type {
   JwtProvider,
   JwtTokens,
   JwtPayload,
+  TokenType,
 } from '@auth/core'
 
 export type {
@@ -16,4 +17,5 @@ export type {
   JwtProvider,
   JwtTokens,
   JwtPayload,
+  TokenType,
 }
