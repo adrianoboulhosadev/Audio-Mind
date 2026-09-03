@@ -62,11 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadUser],
   )
 
-  // Signing up does not log anyone in — the user lands on the login screen with
-  // their account created, which keeps one single path for "becoming logged in".
-  const register = useCallback(async (input: RegisterUserInput) => {
-    await api.post('/auth/register', input)
-  }, [])
+  // Signing up opens the session straight away: the route answers with the same
+  // token a login does, so the new account lands in the app instead of being
+  // asked to retype the credentials it just chose.
+  const register = useCallback(
+    async (input: RegisterUserInput) => {
+      const { data } = await api.post<{ accessToken: string }>('/auth/register', input)
+      setAccessToken(data.accessToken)
+      await loadUser()
+    },
+    [loadUser],
+  )
 
   const logout = useCallback(async () => {
     try {

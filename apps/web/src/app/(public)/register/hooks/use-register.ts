@@ -24,9 +24,10 @@ export function useRegister() {
     setFailure(null)
     try {
       await createAccount(input)
-      // Signing up does not log anyone in — one single path leads to a session.
-      toast.success('Conta criada! Agora é só entrar.')
-      router.replace('/login')
+      // Signing up already opened the session, so this goes straight to the
+      // library — the empty state there is what says "grave ou envie um áudio".
+      toast.success('Conta criada! Bem-vindo ao Audio Mind.')
+      router.replace('/recordings')
     } catch (error) {
       setFailure(errorMessage(error))
     }
