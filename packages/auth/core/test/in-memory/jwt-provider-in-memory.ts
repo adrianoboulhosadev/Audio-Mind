@@ -5,6 +5,10 @@ import { JwtProvider, JwtTokens } from '../../src'
  * verifyToken can return it — necessary because the refresh carries the userId
  * and the sessionId. A counter guarantees distinct tokens per call
  * (multi-device / rotation).
+ *
+ * It STAMPS the `type` claim exactly like the real provider does. A fake that
+ * skipped it would let a test pass that production refuses — the same reason the
+ * notification fake replicates its unique index.
  */
 export default class JwtProviderInMemory implements JwtProvider {
   private counter = 0
@@ -16,7 +20,10 @@ export default class JwtProviderInMemory implements JwtProvider {
   }
 
   generateTokens(payload: object): JwtTokens {
-    return { accessToken: this.generateToken(payload), refreshToken: this.generateToken(payload) }
+    return {
+      accessToken: this.generateToken({ ...payload, type: 'access' }),
+      refreshToken: this.generateToken({ ...payload, type: 'refresh' }),
+    }
   }
 
   verifyToken(token: string, secret: string): string | object {

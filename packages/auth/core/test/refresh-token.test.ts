@@ -60,3 +60,34 @@ test('a deactivated account cannot renew itself even holding a valid refresh', a
     code: Errors.INVALID_SESSION,
   })
 })
+
+test('an ACCESS token presented here is refused, and does NOT tear the family down', async () => {
+  const { sessions, login, useCase } = await setup()
+  const { accessToken, refreshToken } = await login.execute({
+    email: 'a@b.com',
+    password: 'Senha@123',
+  })
+
+  // It carries the same userId and sessionId as the refresh, so without the type
+  // check it got past the lookup, missed the stored hash and was read as a
+  // replayed refresh — logging the owner out of every device.
+  await expect(useCase.execute({ token: accessToken }, SECRET)).rejects.toMatchObject({
+    code: Errors.INVALID_SESSION,
+  })
+
+  expect(sessions.size).toBe(1)
+  await expect(useCase.execute({ token: refreshToken }, SECRET)).resolves.toBeDefined()
+})
+
+test('the pair is stamped so access and refresh are never interchangeable', async () => {
+  const { login } = await setup()
+  const { accessToken, refreshToken } = await login.execute({
+    email: 'a@b.com',
+    password: 'Senha@123',
+  })
+  const claims = (token: string) =>
+    JSON.parse(Buffer.from(token.split('.')[2], 'base64').toString())
+
+  expect(claims(accessToken).type).toBe('access')
+  expect(claims(refreshToken).type).toBe('refresh')
+})

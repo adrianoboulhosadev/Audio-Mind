@@ -15,7 +15,8 @@ export interface Input {
 
 /**
  * Stateful refresh with ROTATION and REUSE DETECTION:
- * - verifies the refresh signature to obtain {userId, sessionId};
+ * - verifies the refresh signature AND that it is a refresh token to obtain
+ *   {userId, sessionId};
  * - finds the session (family) by id and checks the token against the current
  *   hash (bcrypt);
  * - authentic signature + existing family but a token that does NOT match the
@@ -34,6 +35,12 @@ export default class RefreshToken implements UseCase<Input, JwtTokens> {
 
   async execute({ token }: Input, secret: string): Promise<JwtTokens> {
     const payload = this.verify(token, secret)
+    // The mirror of what the AuthMiddleware refuses. Not symmetry for its own
+    // sake: an ACCESS token carries the same sessionId, so it used to get past
+    // this point, miss the stored hash and be read as a replayed refresh —
+    // tearing down the family. Presenting your own access token here logged you
+    // out of every device.
+    if (payload.type !== 'refresh') UnauthorizedError.throwError(Errors.INVALID_SESSION)
     if (!payload.sessionId) UnauthorizedError.throwError(Errors.INVALID_SESSION)
 
     const session = await this.sessionRepository.findById(payload.sessionId)
