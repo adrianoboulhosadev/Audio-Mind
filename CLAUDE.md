@@ -317,8 +317,23 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
   conta (LGPD)"). Os dois caminhos são separados de propósito: desativar guarda tudo e só fecha a
   porta; excluir apaga. Desativar **derruba todas as sessões**, senão a conta segue viva em cada
   aparelho já logado até o refresh expirar — exatamente a janela que o admin estava fechando. **Cadastro é aberto** e toda conta nasce
-  comum: registrar **não loga**, o usuário cai no login com a conta criada, então existe um caminho
-  só pra virar sessão.
+  comum: `POST /auth/register` **já abre a sessão**, respondendo o mesmo `{ accessToken }` + cookie de
+  refresh do login — quem acabou de escolher as credenciais não tem o que provar de novo, e mandar
+  digitar o mesmo par duas vezes era formulário sem beneficiário. Continuam sendo **dois comandos**
+  encadeados no controller (`registerUser` segue devolvendo void), e a sessão sai do **mesmo**
+  `LoginUser` de sempre: `lastLogin`, a família de sessão e o par de tokens vêm de um lugar só, em vez
+  de um segundo caminho paralelo que pode divergir.
+- **Todo token do app carrega o seu `type`** (`access` | `refresh`), estampado pelo `JwtProvider` na
+  emissão do par — nunca pelo caso de uso, que pode esquecer. É o que impede a **confusão de tipo**:
+  os três tokens do app são assinados com o MESMO `JWT_SECRET`, então "a assinatura confere" não
+  responde "esse é o crachá desta porta". Sem o `type`, o refresh de 7 dias e o token de capacidade do
+  áudio (que anda em query string) valiam como sessão inteira, e o logout — que só invalida o refresh
+  em `/auth/refresh` — deixava aquele token abrindo a conta por uma semana. Quem decide é o
+  `verifyAccessToken`, **uma função só**, usada pelo `AuthMiddleware` (header) e pelo `StreamAuthGuard`
+  (query string): duas cópias da mesma checagem é como uma delas fica para trás. É **fail-closed** —
+  token sem `type` é recusado, então sessões anteriores ao deploy logam de novo. O espelho vale no
+  `RefreshToken`: um access token apresentado em `/auth/refresh` era lido como refresh replicado e
+  **derrubava a família inteira** do próprio dono.
 - **recording** — o áudio e o estágio do pipeline. `Recording` (AggregateRoot) + VOs `AudioFile` e
   `RecordingTitle`. `AudioFile` é onde moram os limites que fazem um arquivo ser processável:
   formato aceito pelo modelo (mp3, m4a/mp4, wav, ogg, flac, webm — **com os aliases**, porque
