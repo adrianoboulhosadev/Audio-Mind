@@ -13,6 +13,8 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^shared$': '<rootDir>/../../packages/shared/src/index.ts',
+    '^@summary/adapters$': '<rootDir>/../../packages/summary/adapters/src/index.ts',
+    '^@summary/core$': '<rootDir>/../../packages/summary/core/src/index.ts',
     '^@recording/adapters$': '<rootDir>/../../packages/recording/adapters/src/index.ts',
     '^@recording/core$': '<rootDir>/../../packages/recording/core/src/index.ts',
     '^@annotation/adapters$': '<rootDir>/../../packages/annotation/adapters/src/index.ts',

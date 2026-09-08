@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import { AudioLines, Quote } from 'lucide-react'
 import { Loading } from '@/components/loading'
 import { MindMap } from '@/components/mind-map'
+import { SummaryBullet } from '@/components/summary-bullet'
 import { RECORDING_KIND_LABELS } from '@/data/recording-kinds'
 import { formatDateTime, formatDuration } from '@/lib/format'
 import { SHARE_FAILURES, UNKNOWN_SHARE_FAILURE } from './data/share-failures'
@@ -71,10 +72,7 @@ export default function SharedSummaryPage() {
             </h2>
             <ul className="mt-2 flex flex-col gap-1.5">
               {summary.topics.map((topic) => (
-                <li key={topic} className="flex gap-2 text-sm text-ink2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                  {topic}
-                </li>
+                <SummaryBullet key={topic} text={topic} dotClassName="bg-accent" />
               ))}
             </ul>
           </div>
@@ -87,10 +85,7 @@ export default function SharedSummaryPage() {
             </h2>
             <ul className="mt-2 flex flex-col gap-1.5">
               {summary.actionItems.map((item) => (
-                <li key={item} className="flex gap-2 text-sm text-ink2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-good" />
-                  {item}
-                </li>
+                <SummaryBullet key={item} text={item} dotClassName="bg-good" />
               ))}
             </ul>
           </div>

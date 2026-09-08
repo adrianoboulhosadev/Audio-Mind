@@ -1,4 +1,4 @@
-import { buildMindMap, wrapText, type MindMapNode } from '@/lib/mind-map-layout'
+import { buildMindMap, splitBulletLabel, wrapText, type MindMapNode } from '@summary/adapters'
 
 /**
  * The mind map is drawn from these numbers, and SVG forgives nothing: a box
@@ -54,7 +54,7 @@ describe.each(['wide', 'narrow'] as const)('buildMindMap (%s)', (orientation) =>
       { tone: 'topic', title: 'Pontos principais', items: TOPICS },
       { tone: 'action', title: 'Próximos passos', items: ACTIONS },
     ] },
-    orientation,
+    { orientation },
   )!
 
   it('desenha a raiz, as duas secoes e um no por bullet', () => {
@@ -110,7 +110,7 @@ describe('buildMindMap sem o que desenhar', () => {
           { tone: 'action', title: 'Próximos passos', items: [] },
         ],
       },
-      'wide',
+      { orientation: 'wide' },
     )
 
     // Uma headline sozinha num retangulo nao e um mapa — e desenhar isso faria
@@ -127,7 +127,7 @@ describe('buildMindMap sem o que desenhar', () => {
           { tone: 'action', title: 'Próximos passos', items: [] },
         ],
       },
-      'wide',
+      { orientation: 'wide' },
     )!
 
     expect(map.nodes.filter((node) => node.kind === 'branch')).toHaveLength(1)

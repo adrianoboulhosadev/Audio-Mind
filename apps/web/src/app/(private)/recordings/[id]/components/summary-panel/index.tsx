@@ -2,6 +2,7 @@
 
 import type { SummaryDTO } from '@summary/adapters'
 import { Button } from '@/components/button'
+import { SummaryBullet } from '@/components/summary-bullet'
 import { api } from '@/lib/api'
 
 /**
@@ -40,10 +41,7 @@ export function SummaryPanel({ summary, recordingId }: { summary: SummaryDTO; re
           </h3>
           <ul className="mt-2 flex flex-col gap-1.5">
             {summary.topics.map((topic) => (
-              <li key={topic} className="flex gap-2 text-sm text-ink2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                {topic}
-              </li>
+              <SummaryBullet key={topic} text={topic} dotClassName="bg-accent" />
             ))}
           </ul>
         </div>
@@ -56,10 +54,7 @@ export function SummaryPanel({ summary, recordingId }: { summary: SummaryDTO; re
           </h3>
           <ul className="mt-2 flex flex-col gap-1.5">
             {summary.actionItems.map((item) => (
-              <li key={item} className="flex gap-2 text-sm text-ink2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-good" />
-                {item}
-              </li>
+              <SummaryBullet key={item} text={item} dotClassName="bg-good" />
             ))}
           </ul>
         </div>
