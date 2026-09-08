@@ -785,10 +785,27 @@ validação de UI simples).
     diferentes — é a única coisa que de fato muda entre os dois alvos.
   - **O nó mostra o RÓTULO do bullet** (ver "O formato do bullet"), não a frase inteira: nó com três
     frases dentro é parágrafo numa caixa, não ramo de mapa mental. A explicação inteira fica no
-    `<title>` (tooltip e nome acessível) e escrita por extenso na seção logo abaixo.
-  - **Duas formas na tela, não uma responsiva**: árvore da esquerda pra direita no desktop e pilha
-    indentada abaixo de `lg`, escolhidas por `matchMedia` começando na estreita (senão o servidor
-    renderiza uma e o cliente outra). No PDF é sempre a árvore, medida pra coluna A4.
+    `<title>` (tooltip e nome acessível) e escrita por extenso na seção logo abaixo. Bullet que veio
+    SEM rótulo tem um derivado das primeiras palavras (`leafLabel`) — já aconteceu de vir com dez
+    palavras antes dos dois-pontos, e a frase inteira no nó vira parágrafo dentro de uma caixa.
+  - **É RADIAL: centro no meio, folhas abrindo pros DOIS lados** em ramos que afinam da raiz pra
+    ponta (forma preenchida, não traço de largura fixa), cada folha sobre um galho em vez de dentro
+    de uma caixa — caixa em toda folha fazia o mapa ler como organograma. Isso só ficou possível
+    quando o bullet passou a ter rótulo curto: enquanto a folha era uma frase, radial exigia girar
+    parágrafo ou um desenho três vezes mais largo que a página.
+    - **O leque é vertical com distância em arco**: as folhas empilham (o que GARANTE que nunca se
+      sobrepõem) enquanto a distância até o centro segue `innerRadius + arc * (1 - t²)`, então o
+      meio de cada lado alcança mais longe que as pontas. É a forma do compasso sem a matemática de
+      colisão de um polar de verdade.
+    - **Uma seção por lado; com uma seção só, as folhas se repartem entre os dois** — leque num
+      lado e nada no outro é uma lista que aprendeu a curvar.
+    - **A seção virou COR, então precisa de legenda**: o radial não tem onde caber um nó de seção,
+      e cor que não é nomeada em lugar nenhum é enfeite. O `map.legend` sai do layout e os dois
+      alvos desenham.
+  - **No celular é a pilha indentada** (`narrow`), escolhida por `matchMedia` começando na estreita
+    (senão o servidor renderiza uma e o cliente outra): o radial precisa dos dois lados de um centro
+    pra significar alguma coisa, e 390px tem espaço pra um. No PDF é sempre o radial, medido pra
+    coluna A4.
   - **Não existe download do mapa como imagem.** O mapa que a pessoa GUARDA é o que está dentro do
     PDF, em vetor, ao lado do texto que ele resume — um segundo arquivo, em formato pior e sozinho,
     era um artefato a mais dizendo a mesma coisa.
