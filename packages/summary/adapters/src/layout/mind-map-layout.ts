@@ -161,6 +161,9 @@ export const DEFAULT_MIND_MAP_GEOMETRY: MindMapGeometry = {
   },
 }
 
+/** The prompt asks for 2 to 5 words; past this it is a sentence, not a label. */
+const MAX_LABEL_WORDS = 6
+
 /**
  * A bullet written as "Rótulo: explicação" split in two.
  *
@@ -174,12 +177,18 @@ export const DEFAULT_MIND_MAP_GEOMETRY: MindMapGeometry = {
  */
 export function splitBulletLabel(text: string): { label: string | null; detail: string } {
   const trimmed = text.trim()
-  // Only a label at the very START, short, and followed by real content. A colon
-  // in the middle of a sentence ("o prazo: sexta") is not a label.
-  const match = /^([^:—–]{3,60})\s*[:—–]\s+(\S[\s\S]*)$/.exec(trimmed)
+  // A label is at the very START, opens with a capital (or a number, for "NR15"),
+  // carries no sentence punctuation, and is followed by real content. The
+  // capital and the word count are what tell a LABEL from a colon in the middle
+  // of a sentence — "o time decidiu o seguinte: esperar o fechamento" is not a
+  // label, and drawing it as one puts half a sentence in a node of the map.
+  const match = /^([\p{Lu}\p{N}][^:—–.!?]{1,58})\s*[:—–]\s+(\S[\s\S]*)$/u.exec(trimmed)
   if (!match) return { label: null, detail: trimmed }
 
-  return { label: match[1].trim(), detail: match[2].trim() }
+  const label = match[1].trim()
+  if (label.split(/\s+/).length > MAX_LABEL_WORDS) return { label: null, detail: trimmed }
+
+  return { label, detail: match[2].trim() }
 }
 
 /**
