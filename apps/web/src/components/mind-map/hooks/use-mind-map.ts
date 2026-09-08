@@ -10,7 +10,7 @@ interface Input {
   actionItems: string[]
 }
 
-/** Above this the wide map fits; below it the stacked one is drawn. Matches
+/** Above this the radial map fits; below it the stacked one is drawn. Matches
  * Tailwind's `lg`, which is where the app already switches its navigation. */
 const WIDE_QUERY = '(min-width: 1024px)'
 
@@ -30,7 +30,7 @@ export function useMindMap({ headline, topics, actionItems }: Input) {
 
   useEffect(() => {
     const query = window.matchMedia(WIDE_QUERY)
-    const apply = () => setOrientation(query.matches ? 'wide' : 'narrow')
+    const apply = () => setOrientation(query.matches ? 'radial' : 'narrow')
     apply()
     query.addEventListener('change', apply)
     return () => query.removeEventListener('change', apply)

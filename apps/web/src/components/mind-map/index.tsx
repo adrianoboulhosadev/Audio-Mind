@@ -12,8 +12,8 @@ interface MindMapProps {
 }
 
 /**
- * The summary as a picture: the headline in the middle of it, each section a
- * branch, each bullet a leaf.
+ * The summary as a mind map: the headline in the middle, every bullet a leaf on
+ * a branch that fans out and tapers as it goes.
  *
  * Nothing here comes from a model — it is the summary that is already on the
  * screen, laid out. So it costs no call, works on every recording ever
@@ -22,22 +22,40 @@ interface MindMapProps {
  *
  * The SAME geometry the PDF draws (@summary/adapters), so the picture on the
  * screen and the one in the document are the same picture — here as SVG, there
- * as vector. Hand-written both times: a diagram library for a tree of two levels
- * would be a dependency doing less than this file.
+ * as vector. Hand-written both times: a diagram library for this would be a
+ * dependency doing less than this file.
  */
 export function MindMap({ headline, topics, actionItems }: MindMapProps) {
   const map = useMindMap({ headline, topics, actionItems })
 
-  // A headline in a box with nothing branching off it is not a map — and drawing
-  // one would make a summary with no bullets look like a broken feature.
+  // A headline with nothing branching off it is not a map — and drawing one
+  // would make a summary with no bullets look like a broken feature.
   if (!map) return null
 
   return (
     <section className="rounded-2xl border border-line2 bg-panel p-5 shadow-card">
-      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
-        <Network size={13} aria-hidden />
-        Mapa mental
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          <Network size={13} aria-hidden />
+          Mapa mental
+        </h2>
+
+        {/* A cor É a seção aqui (o mapa radial não tem onde caber um nó de
+            seção), e cor que não é nomeada em lugar nenhum é enfeite. */}
+        {map.legend.length > 0 ? (
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {map.legend.map((entry) => (
+              <li key={entry.tone} className="flex items-center gap-1.5 text-[11px] text-muted">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: MIND_MAP_TONE_COLORS[entry.tone] }}
+                />
+                {entry.title}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
 
       {/* The drawing keeps its own size and scales down only if the card is
           narrower than it is — and scrolls sideways before it ever gets small
@@ -52,18 +70,19 @@ export function MindMap({ headline, topics, actionItems }: MindMapProps) {
           className="mx-auto h-auto max-w-full"
           style={{ fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif' }}
         >
-          {/* Painted, not transparent: a PNG with no background turns into a
-              dark map on a white page the moment somebody pastes it somewhere. */}
           <rect x={0} y={0} width={map.width} height={map.height} style={{ fill: 'var(--panel)' }} />
 
           {map.edges.map((edge) => (
             <path
               key={edge.id}
               d={edge.path}
-              fill="none"
-              strokeWidth={1.5}
+              // A branch is FILLED (it tapers, so it has an outline, not a
+              // width); a twig is a stroked line.
+              fill={edge.filled ? MIND_MAP_TONE_COLORS[edge.tone] : 'none'}
+              stroke={edge.filled ? 'none' : MIND_MAP_TONE_COLORS[edge.tone]}
+              strokeWidth={edge.filled ? 0 : 1.4}
               strokeLinecap="round"
-              style={{ stroke: MIND_MAP_TONE_COLORS[edge.tone], opacity: 0.45 }}
+              opacity={edge.filled ? 0.5 : 0.9}
             />
           ))}
 
@@ -76,8 +95,13 @@ export function MindMap({ headline, topics, actionItems }: MindMapProps) {
   )
 }
 
-/** One box. The whole label lives in `<title>`, so what the ellipsis cut off is
- * still readable on hover and still reaches a screen reader. */
+/**
+ * One node. The root is a filled box; a leaf is bare text sitting on its twig —
+ * boxing every label is what made the map read as an org chart.
+ *
+ * The whole bullet lives in `<title>`, so what the label left out is still
+ * readable on hover and still reaches a screen reader.
+ */
 function Node({ node }: { node: MindMapNode }) {
   const tone = node.tone ? MIND_MAP_TONE_COLORS[node.tone] : 'var(--accent)'
   const isRoot = node.kind === 'root'
@@ -86,23 +110,28 @@ function Node({ node }: { node: MindMapNode }) {
   return (
     <g>
       <title>{node.text}</title>
-      <rect
-        x={node.x}
-        y={node.y}
-        width={node.width}
-        height={node.height}
-        rx={12}
-        strokeWidth={isRoot ? 0 : 1}
-        style={{
-          fill: isRoot ? tone : 'var(--panel2)',
-          stroke: isBranch ? tone : 'var(--line2)',
-        }}
-      />
+
+      {isRoot || isBranch ? (
+        <rect
+          x={node.x}
+          y={node.y}
+          width={node.width}
+          height={node.height}
+          rx={isRoot ? 16 : 10}
+          strokeWidth={isRoot ? 0 : 1}
+          style={{
+            fill: isRoot ? tone : 'var(--panel2)',
+            stroke: isBranch ? tone : 'var(--line2)',
+          }}
+        />
+      ) : null}
+
       <text
         fontSize={node.fontSize}
-        fontWeight={isRoot || isBranch ? 600 : 400}
+        fontWeight={isRoot || isBranch ? 600 : 500}
+        textAnchor={anchorOf(node)}
         style={{
-          fill: isRoot ? 'var(--accent-ink)' : isBranch ? tone : 'var(--ink2)',
+          fill: isRoot ? 'var(--accent-ink)' : isBranch ? tone : 'var(--ink)',
         }}
       >
         {node.lines.map((line, index) => (
@@ -110,7 +139,7 @@ function Node({ node }: { node: MindMapNode }) {
             key={index}
             // Every line repeats x: a tspan without it continues where the
             // previous one ended, which turns a wrapped label into a staircase.
-            x={node.textX}
+            x={textOriginOf(node)}
             y={node.textY + index * node.lineHeight}
           >
             {line}
@@ -119,4 +148,15 @@ function Node({ node }: { node: MindMapNode }) {
       </text>
     </g>
   )
+}
+
+function anchorOf(node: MindMapNode): 'start' | 'middle' | 'end' {
+  if (node.align === 'center') return 'middle'
+  return node.align === 'right' ? 'end' : 'start'
+}
+
+/** Where the line is anchored FROM, which depends on which end is fixed. */
+function textOriginOf(node: MindMapNode): number {
+  if (node.align === 'center') return node.x + node.width / 2
+  return node.align === 'right' ? node.x + node.width : node.textX
 }

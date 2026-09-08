@@ -1,4 +1,4 @@
-import { buildMindMap, splitBulletLabel, wrapText, type MindMapNode } from '@summary/adapters'
+import { buildMindMap, leafLabel, splitBulletLabel, wrapText, type MindMapNode } from '@summary/adapters'
 
 /**
  * The mind map is drawn from these numbers, and SVG forgives nothing: a box
@@ -48,7 +48,7 @@ describe('wrapText', () => {
   })
 })
 
-describe.each(['wide', 'narrow'] as const)('buildMindMap (%s)', (orientation) => {
+describe.each(['radial', 'narrow'] as const)('buildMindMap (%s)', (orientation) => {
   const map = buildMindMap(
     { headline: HEADLINE, groups: [
       { tone: 'topic', title: 'Pontos principais', items: TOPICS },
@@ -57,10 +57,16 @@ describe.each(['wide', 'narrow'] as const)('buildMindMap (%s)', (orientation) =>
     { orientation },
   )!
 
-  it('desenha a raiz, as duas secoes e um no por bullet', () => {
-    expect(map.nodes).toHaveLength(1 + 2 + TOPICS.length + ACTIONS.length)
+  it('desenha a raiz e um no por bullet', () => {
+    // O radial nao tem no de secao (a secao virou COR, com legenda); o
+    // empilhado tem. Os dois desenham uma folha por bullet.
     expect(map.nodes.filter((node) => node.kind === 'root')).toHaveLength(1)
-    expect(map.nodes.filter((node) => node.kind === 'branch')).toHaveLength(2)
+    expect(map.nodes.filter((node) => node.kind === 'leaf')).toHaveLength(
+      TOPICS.length + ACTIONS.length,
+    )
+    expect(map.legend.map((entry) => entry.tone)).toEqual(
+      orientation === 'radial' ? ['topic', 'action'] : [],
+    )
   })
 
   it('nao sobrepoe nenhum par de caixas', () => {
@@ -83,20 +89,40 @@ describe.each(['wide', 'narrow'] as const)('buildMindMap (%s)', (orientation) =>
     })
   })
 
-  it('escreve o texto dentro da propria caixa', () => {
+  it('escreve o texto dentro da area do proprio no', () => {
+    // A folha do radial NAO tem caixa (e rotulo sobre o galho), entao o texto
+    // comeca na borda dela; a raiz tem padding. Nos dois casos, o que nao pode
+    // e a ultima linha cair pra fora da area medida.
     map.nodes.forEach((node) => {
-      expect(node.textX).toBeGreaterThan(node.x)
+      expect(node.textX).toBeGreaterThanOrEqual(node.x)
       expect(node.textY).toBeGreaterThan(node.y)
       const lastBaseline = node.textY + (node.lines.length - 1) * node.lineHeight
-      expect(lastBaseline).toBeLessThanOrEqual(node.y + node.height)
+      expect(lastBaseline).toBeLessThanOrEqual(node.y + node.height + node.fontSize)
     })
   })
 
-  it('liga cada no ao pai: uma aresta por secao e uma por bullet', () => {
-    // A stacked layout also draws the spine that runs down the gutter, so the
-    // count is a floor, not an equality.
-    expect(map.edges.length).toBeGreaterThanOrEqual(2 + TOPICS.length + ACTIONS.length)
+  it('liga cada folha ao centro', () => {
+    // O radial desenha ramo + galho por folha; o empilhado desenha a espinha
+    // alem das ligacoes. Em ambos o piso e uma aresta por bullet.
+    expect(map.edges.length).toBeGreaterThanOrEqual(TOPICS.length + ACTIONS.length)
     map.edges.forEach((edge) => expect(edge.path).toMatch(/^M -?\d/))
+  })
+
+  it('nenhuma aresta aponta pra fora do desenho', () => {
+    const points = map.edges.flatMap((edge) =>
+      edge.segments.flatMap((segment) =>
+        segment.kind === 'ribbon'
+          ? [segment.out.from, segment.out.to, segment.tip, segment.back.to]
+          : [segment.from, segment.to],
+      ),
+    )
+
+    points.forEach(([x, y]) => {
+      expect(x).toBeGreaterThanOrEqual(0)
+      expect(y).toBeGreaterThanOrEqual(0)
+      expect(x).toBeLessThanOrEqual(map.width)
+      expect(y).toBeLessThanOrEqual(map.height)
+    })
   })
 })
 
@@ -110,7 +136,7 @@ describe('buildMindMap sem o que desenhar', () => {
           { tone: 'action', title: 'Próximos passos', items: [] },
         ],
       },
-      { orientation: 'wide' },
+      { orientation: 'radial' },
     )
 
     // Uma headline sozinha num retangulo nao e um mapa — e desenhar isso faria
@@ -127,10 +153,37 @@ describe('buildMindMap sem o que desenhar', () => {
           { tone: 'action', title: 'Próximos passos', items: [] },
         ],
       },
-      { orientation: 'wide' },
+      { orientation: 'radial' },
     )!
 
-    expect(map.nodes.filter((node) => node.kind === 'branch')).toHaveLength(1)
-    expect(map.nodes).toHaveLength(1 + 1 + TOPICS.length)
+    // Com uma secao so, o radial reparte as folhas entre os DOIS lados: leque
+    // num lado e nada no outro e uma lista que aprendeu a curvar.
+    expect(map.nodes.filter((node) => node.kind === 'leaf')).toHaveLength(TOPICS.length)
+    const middle = map.width / 2
+    expect(map.nodes.some((node) => node.kind === 'leaf' && node.x < middle)).toBe(true)
+    expect(map.nodes.some((node) => node.kind === 'leaf' && node.x > middle)).toBe(true)
+  })
+})
+
+describe('leafLabel', () => {
+  it('usa o rotulo quando o bullet tem um', () => {
+    expect(leafLabel('Prazo do lançamento: ficou adiado para o dia 5.')).toBe('Prazo do lançamento')
+  })
+
+  it('encurta o bullet que veio SEM rotulo, em vez de jogar a frase no no', () => {
+    // Caso real: dez palavras antes dos dois-pontos, entao nao e rotulo — e a
+    // frase inteira num no do mapa vira paragrafo dentro de uma caixa.
+    const real =
+      'Estudar o documento enviado sobre definição de acidente de trabalho: revisar o material para entender a diferença.'
+    const label = leafLabel(real)
+
+    expect(splitBulletLabel(real).label).toBeNull()
+    expect(label.split(/\s+/).length).toBeLessThanOrEqual(6)
+    expect(label.endsWith('…')).toBe(true)
+    expect(real.startsWith(label.replace('…', ''))).toBe(true)
+  })
+
+  it('bullet curto sem rotulo sai inteiro, sem reticencia', () => {
+    expect(leafLabel('Lançamento adiado')).toBe('Lançamento adiado')
   })
 })

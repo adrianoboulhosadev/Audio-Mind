@@ -149,7 +149,7 @@ export class PdfKitSummaryRenderer implements PdfRenderer {
         ],
       },
       {
-        orientation: 'wide',
+        orientation: 'radial',
         geometry: PDF_MIND_MAP_GEOMETRY,
         measure: pdfMeasure(document),
       },
@@ -171,6 +171,7 @@ export class PdfKitSummaryRenderer implements PdfRenderer {
     if (document.y + needed > PAGE_BOTTOM && fitsAPage) document.addPage()
 
     this.heading(document, SECTIONS.map, PDF_COLORS.accent)
+    this.legend(document, map.legend)
 
     // The cursor has to be remembered BEFORE drawing: every label the map writes
     // is a `text()` call, and pdfkit advances its own cursor on each one — inside
@@ -254,6 +255,32 @@ export class PdfKitSummaryRenderer implements PdfRenderer {
       // margin, or the next heading starts under the bullets.
       document.x = MARGIN
     })
+  }
+
+  /**
+   * What each colour on the map means. The radial map has no room for a section
+   * node, so the section became the branch's COLOUR — and a colour that is not
+   * named anywhere is decoration, not information.
+   */
+  private legend(document: PDFKit.PDFDocument, entries: { tone: string; title: string }[]): void {
+    if (entries.length === 0) return
+
+    const y = document.y
+    let x = MARGIN
+
+    entries.forEach((entry) => {
+      const color = entry.tone === 'action' ? PDF_COLORS.good : PDF_COLORS.accent
+      document.circle(x + 2.5, y + 4, 2.5).fillColor(color).fill()
+      document
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(PDF_COLORS.muted)
+        .text(entry.title, x + 9, y, { lineBreak: false })
+      x += 9 + document.widthOfString(entry.title) + 16
+    })
+
+    document.x = MARGIN
+    document.y = y + 14
   }
 
   private heading(document: PDFKit.PDFDocument, text: string, color: string): void {

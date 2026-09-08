@@ -13,8 +13,8 @@ import {
  * The geometry is the same one the screen uses (@summary/adapters); what
  * changes here is the two things that are genuinely different on paper:
  *
- * - the boxes are measured with the REAL font (`widthOfString`) instead of an
- *   average glyph width, so nothing ends up a hair too wide for its box;
+ * - the labels are measured with the REAL font (`widthOfString`) instead of an
+ *   average glyph width, so every one of them sits exactly on its twig;
  * - it is a light document on white paper, not the app's dark panel.
  *
  * Vector matters beyond looks: the text stays selectable and searchable, and it
@@ -45,38 +45,41 @@ const TONE: Record<MindMapTone, { stroke: string; soft: string }> = {
 }
 
 /**
- * Points, not pixels, and sized for an A4 text column: root + section + leaf
- * with two gaps has to land inside 483pt, so the boxes are narrower and the
- * type smaller than on screen. It fits because the leaves draw the bullet's
- * LABEL — the explanation is written out in full further down the page.
+ * Points, not pixels, and sized for an A4 text column: the map reaches out to
+ * BOTH sides of the headline, so the budget is
+ * `2 × (distance + label)` and it has to land inside 483pt. It fits because a
+ * leaf draws the bullet's LABEL — two to five words — and not the sentence,
+ * which is written out in full further down the page.
  */
 export const PDF_MIND_MAP_GEOMETRY: MindMapGeometry = {
   ...DEFAULT_MIND_MAP_GEOMETRY,
   lineHeight: 10.5,
-  padX: 7,
-  padY: 6,
-  leafGap: 7,
-  groupGap: 16,
-  levelGap: 26,
-  margin: 4,
-  wide: {
-    root: { width: 132, fontSize: 10, maxLines: 4, bold: true },
-    branch: { width: 116, fontSize: 8.5, maxLines: 2, bold: true },
-    leaf: { width: 165, fontSize: 8, maxLines: 3, bold: false },
+  padX: 8,
+  padY: 7,
+  leafGap: 15,
+  groupGap: 14,
+  margin: 6,
+  radial: {
+    root: { width: 150, fontSize: 11, maxLines: 4, bold: true },
+    leaf: { width: 112, fontSize: 8.5, maxLines: 3, bold: false },
+    innerRadius: 92,
+    arc: 40,
+    ribbonRoot: 6.5,
+    ribbonLeaf: 1.2,
+    twigHeight: 1.2,
   },
 }
 
 /**
- * Wrapping measured against the actual font, which pdfkit can do and a browser
- * cannot do cheaply. `lineBreak: false` everywhere else in the drawing depends
- * on this being right: pdfkit would otherwise re-wrap inside its own box and
- * push text out of the rectangle we drew.
+ * Wrapping and width measured against the actual font, which pdfkit can do and
+ * a browser cannot do cheaply. `lineBreak: false` everywhere in the drawing
+ * depends on this being right: pdfkit would otherwise re-wrap inside its own box
+ * and push text out of where the layout put it.
  */
 export function pdfMeasure(document: PDFKit.PDFDocument): MindMapMeasure {
   return (text, spec) => {
     document.font(spec.bold ? BOLD : FONT).fontSize(spec.fontSize)
-    const limit = spec.width - PDF_MIND_MAP_GEOMETRY.padX * 2
-    const fits = (value: string) => document.widthOfString(value) <= limit
+    const fits = (value: string) => document.widthOfString(value) <= spec.width
 
     const lines: string[] = []
     let current = ''
@@ -84,7 +87,7 @@ export function pdfMeasure(document: PDFKit.PDFDocument): MindMapMeasure {
     for (const word of text.trim().split(/\s+/).filter(Boolean)) {
       let rest = word
       // A single word wider than the box is broken by force — pdfkit does not
-      // clip, so it would simply run over the neighbouring node.
+      // clip, so it would simply run over the neighbouring label.
       while (!fits(rest)) {
         let cut = rest.length - 1
         while (cut > 1 && !fits(rest.slice(0, cut))) cut--
@@ -107,14 +110,19 @@ export function pdfMeasure(document: PDFKit.PDFDocument): MindMapMeasure {
     }
     if (current) lines.push(current)
 
-    if (lines.length === 0) return ['']
-    if (lines.length <= spec.maxLines) return lines
+    if (lines.length === 0) return { lines: [''], width: 0 }
 
-    const kept = lines.slice(0, spec.maxLines)
-    let last = kept[spec.maxLines - 1]
-    while (last.length > 1 && !fits(`${last}…`)) last = last.slice(0, -1)
-    kept[spec.maxLines - 1] = `${last.trimEnd()}…`
-    return kept
+    if (lines.length > spec.maxLines) {
+      const kept = lines.slice(0, spec.maxLines)
+      let last = kept[spec.maxLines - 1]
+      while (last.length > 1 && !fits(`${last}…`)) last = last.slice(0, -1)
+      kept[spec.maxLines - 1] = `${last.trimEnd()}…`
+      lines.length = 0
+      lines.push(...kept)
+    }
+
+    const width = lines.reduce((widest, line) => Math.max(widest, document.widthOfString(line)), 0)
+    return { lines, width: Math.min(spec.width, width) }
   }
 }
 
@@ -141,7 +149,36 @@ export function drawMindMap(
 
   map.edges.forEach((edge) => {
     const { stroke } = TONE[edge.tone]
+
     edge.segments.forEach((segment) => {
+      if (segment.kind === 'ribbon') {
+        // Filled, not stroked: the branch tapers, so its width is an OUTLINE.
+        document
+          .moveTo(segment.out.from[0], segment.out.from[1])
+          .bezierCurveTo(
+            segment.out.control[0][0],
+            segment.out.control[0][1],
+            segment.out.control[1][0],
+            segment.out.control[1][1],
+            segment.out.to[0],
+            segment.out.to[1],
+          )
+          .lineTo(segment.tip[0], segment.tip[1])
+          .bezierCurveTo(
+            segment.back.control[0][0],
+            segment.back.control[0][1],
+            segment.back.control[1][0],
+            segment.back.control[1][1],
+            segment.back.to[0],
+            segment.back.to[1],
+          )
+          .closePath()
+          .fillOpacity(0.45)
+          .fill(stroke)
+          .fillOpacity(1)
+        return
+      }
+
       document.moveTo(segment.from[0], segment.from[1])
       if (segment.kind === 'line') {
         document.lineTo(segment.to[0], segment.to[1])
@@ -155,7 +192,7 @@ export function drawMindMap(
           segment.to[1],
         )
       }
-      document.lineWidth(0.8).strokeColor(stroke).strokeOpacity(0.55).stroke()
+      document.lineWidth(1).strokeColor(stroke).strokeOpacity(0.85).stroke()
     })
   })
   document.strokeOpacity(1)
@@ -171,26 +208,29 @@ function drawNode(document: PDFKit.PDFDocument, node: MindMapNode): void {
   const isRoot = node.kind === 'root'
   const isBranch = node.kind === 'branch'
 
-  document.roundedRect(node.x, node.y, node.width, node.height, 5)
-  if (isRoot) {
-    document.fillAndStroke(tone.stroke, tone.stroke)
-  } else if (isBranch) {
-    document.lineWidth(0.8).fillAndStroke(tone.soft, tone.stroke)
-  } else {
-    document.lineWidth(0.6).fillAndStroke(PDF_COLORS.panel, PDF_COLORS.line)
+  // Only the middle (and the section header of the stacked layout) is a box: a
+  // rectangle around every label is what made the map read as an org chart.
+  if (isRoot || isBranch) {
+    document.roundedRect(node.x, node.y, node.width, node.height, isRoot ? 9 : 5)
+    if (isRoot) {
+      document.fillAndStroke(tone.stroke, tone.stroke)
+    } else {
+      document.lineWidth(0.8).fillAndStroke(tone.soft, tone.stroke)
+    }
   }
 
   document
     .font(node.bold ? BOLD : FONT)
     .fontSize(node.fontSize)
-    .fillColor(isRoot ? '#ffffff' : isBranch ? tone.stroke : PDF_COLORS.ink2)
+    .fillColor(isRoot ? '#ffffff' : isBranch ? tone.stroke : PDF_COLORS.ink)
 
   node.lines.forEach((line, index) => {
     // `textY` is a BASELINE (that is what SVG wants); pdfkit places the top of
     // the line, so the ascender comes back off.
-    document.text(line, node.textX, node.textY - node.fontSize + index * node.lineHeight, {
+    document.text(line, node.x, node.textY - node.fontSize + index * node.lineHeight, {
       lineBreak: false,
       width: node.width,
+      align: node.align === 'center' ? 'center' : node.align === 'right' ? 'right' : 'left',
     })
   })
 }
