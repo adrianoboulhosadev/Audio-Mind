@@ -39,7 +39,7 @@ Precisa de Node 18+ e Docker (pro Postgres e o Redis).
 
 ```bash
 cp .env.example .env                       # senha do Postgres
-cp apps/backend/.env.example apps/backend/.env
+cp apps/backend/.env.example apps/backend/.env   # <- a GROQ_API_KEY vai aqui TAMBEM
 cp apps/worker/.env.example  apps/worker/.env   # <- ponha sua GROQ_API_KEY aqui
 cp apps/web/.env.example     apps/web/.env
 
@@ -54,6 +54,13 @@ npm run dev        # sobe Postgres + Redis, aplica as migrations e roda tudo
 (fail-closed) em vez de aceitar áudios e marcar todos como falhos. A MESMA chave
 serve pros dois passos (transcrever e resumir) — pegue em
 https://console.groq.com.
+
+**E a MESMA chave vai no `apps/backend/.env` também.** Backend e worker são dois
+processos, cada um com o seu arquivo de ambiente — colocar a chave só no worker
+deixa a rota "perguntar sobre esse áudio" (`POST /summary/recording/:id/ask`)
+respondendo `AI_UNAVAILABLE`. Ali ela é opcional de propósito: o backend sobe sem
+ela e só essa rota deixa de funcionar (avisando no log do boot), porque derrubar
+a API inteira por causa de uma funcionalidade seria pior.
 
 Pra rodar o stack inteiro em container (simular produção):
 

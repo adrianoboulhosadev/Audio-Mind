@@ -233,8 +233,18 @@ pending -> transcribing -> summarizing -> ready --(reprocessar, só o dono)--> p
   conexão por até 5min; a borda da Groq fecha conexão ociosa antes disso, e um processo de longa
   duração (com gaps reais entre jobs) acaba reusando socket morto → `"Premature close"`.
   `createGroqClient()` resolve com `httpAgent: new HttpsAgent({ keepAlive: false })`.
-- **`GROQ_API_KEY` é fail-closed**: sem a chave o worker **recusa iniciar**. Um worker que sobe sem
-  IA só serviria pra marcar todo áudio como falho.
+- **`GROQ_API_KEY` é fail-closed NO WORKER**: sem a chave ele **recusa iniciar**. Um worker que sobe
+  sem IA só serviria pra marcar todo áudio como falho.
+  - **O BACKEND precisa da MESMA chave**, no `apps/backend/.env` — são dois processos, dois arquivos
+    de ambiente, e a rota de perguntar sobre o áudio roda dentro do request. Ali ela é **opcional**:
+    o backend sobe sem chave (a API tem rota demais que não precisa de modelo pra derrubar tudo por
+    causa de uma), **avisa no boot** que a funcionalidade está desligada e responde `AI_UNAVAILABLE`
+    (503) a quem perguntar. Já custou uma tarde: a chave estava só no `.env` do worker e a rota
+    respondia `UNKNOWN_ERROR` 500, com a causa só no log do container.
+  - **Falha de IA nunca sai como 500 genérico**: todo caminho de erro do `GroqQuestionAnswerer` vira
+    `ServiceUnavailableError(AI_UNAVAILABLE)` e a causa fica no **log**, nunca na resposta. Um
+    `throw new Error(...)` ali cai no ramo desconhecido do `DomainExceptionFilter`, que é vago de
+    propósito — e o usuário lê "algo deu errado" sobre uma coisa que ele nem podia consertar.
 - **O áudio é REAMOSTRADO antes de subir** (`audio-compressor.ts`): 16 kHz mono, Opus 32 kbps, via
   ffmpeg. O limite da API é de **BYTES, não de minutos**, e Whisper reamostra pra 16 kHz mono de
   qualquer jeito — mandar um master 48 kHz estéreo é gastar a cota com o que o modelo joga fora. Na
@@ -284,6 +294,7 @@ tipo → status é o `DomainExceptionFilter` (global, em `apps/backend/src/share
 | `AccessDeniedError` | 403  | autenticado, sem permissão                                                   |
 | `NotFoundError`     | 404  | recurso inexistente                                                          |
 | `ConflictError`     | 409  | estado duplicado/conflitante                                                 |
+| `ServiceUnavailableError` | 503 | dependência (o modelo) fora do ar ou sem chave configurada             |
 
 Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` (constantes no
 `shared`); body de erro `{ statusCode, errors: [{ code }] }`.
