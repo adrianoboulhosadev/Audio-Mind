@@ -14,6 +14,7 @@ import {
   AccessDeniedError,
   NotFoundError,
   ConflictError,
+  ServiceUnavailableError,
   Errors,
 } from 'shared'
 
@@ -29,6 +30,9 @@ function statusOf(error: DomainError): number {
   if (error instanceof NotFoundError) return HttpStatus.NOT_FOUND // 404
   if (error instanceof ConflictError) return HttpStatus.CONFLICT // 409
   if (error instanceof ValidationError) return HttpStatus.BAD_REQUEST // 400
+  // 503, and the only one here that is not about the caller: a dependency (the
+  // model) is missing or down, and the same request may well work later.
+  if (error instanceof ServiceUnavailableError) return HttpStatus.SERVICE_UNAVAILABLE // 503
   return HttpStatus.BAD_REQUEST // generic DomainError
 }
 

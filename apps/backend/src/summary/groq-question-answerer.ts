@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Agent as HttpsAgent } from 'node:https'
 import OpenAI, { NotFoundError } from 'openai'
+import { Errors, ServiceUnavailableError } from 'shared'
 import { TranscriptAnswer, TranscriptQuestionAnswerer, TranscriptQuestionInput } from '@summary/adapters'
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
@@ -55,18 +56,42 @@ ${input.question}`
  *
  * No JSON mode here — the answer IS prose, and asking for a JSON envelope would
  * only add a way for it to arrive malformed.
+ *
+ * Every way this can fail leaves as AI_UNAVAILABLE, a DOMAIN error, so the
+ * screen shows "a IA está indisponível" instead of the filter's deliberately
+ * vague UNKNOWN_ERROR. The cause never travels in the response — it is logged
+ * here, which is the only place it exists.
  */
 @Injectable()
-export class GroqQuestionAnswerer implements TranscriptQuestionAnswerer {
+export class GroqQuestionAnswerer implements TranscriptQuestionAnswerer, OnModuleInit {
+  private readonly logger = new Logger(GroqQuestionAnswerer.name)
   private model = process.env.GROQ_MODEL ?? CHAT_MODEL_FALLBACKS[0]
+
+  /**
+   * Says at BOOT that this feature is off, instead of letting the first person
+   * to ask a question be the one who finds out. Not fail-closed like the worker
+   * (which without AI would have nothing to do): the API has plenty of routes
+   * that need no model, and refusing to start would take the whole app down
+   * over one feature.
+   */
+  onModuleInit(): void {
+    if (!process.env.GROQ_API_KEY) {
+      this.logger.warn(
+        'GROQ_API_KEY is not set for the BACKEND (apps/backend/.env) — asking questions about a ' +
+          'recording will answer AI_UNAVAILABLE. It is the same key the worker uses; setting it in ' +
+          "the worker's .env alone is not enough, they are separate processes.",
+      )
+    }
+  }
 
   async answer(input: TranscriptQuestionInput): Promise<TranscriptAnswer> {
     const apiKey = process.env.GROQ_API_KEY ?? ''
     if (!apiKey) {
-      // Not fail-closed at boot like the worker: the API has plenty of routes
-      // that do not need a model, and refusing to start would take the whole
-      // app down over one feature.
-      throw new Error('GROQ_API_KEY missing — the backend cannot answer questions without it.')
+      this.logger.error(
+        'GROQ_API_KEY missing — the backend cannot answer questions without it. Set it in ' +
+          'apps/backend/.env (the same key the worker uses) and restart the container.',
+      )
+      ServiceUnavailableError.throwError(Errors.AI_UNAVAILABLE)
     }
 
     const client = new OpenAI({
@@ -92,18 +117,28 @@ export class GroqQuestionAnswerer implements TranscriptQuestionAnswerer {
         // Only "no such model / no access" moves on; anything else is this
         // call's failure and trying another model would spend the quota on the
         // same error.
-        if (!isModelUnavailable(error)) throw error
+        if (!isModelUnavailable(error)) {
+          this.logger.error(
+            `Groq failed to answer with the model "${model}": ${messageOf(error)}`,
+            error instanceof Error ? error.stack : undefined,
+          )
+          ServiceUnavailableError.throwError(Errors.AI_UNAVAILABLE)
+        }
         lastError = error
-        console.warn(`[backend] Groq refused the model "${model}" for this API key.`)
+        this.logger.warn(`Groq refused the model "${model}" for this API key.`)
       }
     }
 
-    throw new Error(
-      `No Groq chat model is available for this API key. Tried: ${candidates.join(', ')}. Last answer: ${
-        lastError instanceof Error ? lastError.message : String(lastError)
-      }`,
+    this.logger.error(
+      `No Groq chat model is available for this API key. Tried: ${candidates.join(', ')}. ` +
+        `Last answer: ${messageOf(lastError)}`,
     )
+    ServiceUnavailableError.throwError(Errors.AI_UNAVAILABLE)
   }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function isModelUnavailable(error: unknown): boolean {
