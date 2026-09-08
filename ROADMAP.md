@@ -6,7 +6,7 @@
 
 ## A fila está VAZIA
 
-Os 6 itens aprovados foram entregues. O que cada um virou, e onde a decisão dele mora agora:
+Os 7 itens aprovados foram entregues. O que cada um virou, e onde a decisão dele mora agora:
 
 | # | Item                              | O que ficou de pé                                                                                              | Onde está documentado                |
 | - | --------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
@@ -16,8 +16,9 @@ Os 6 itens aprovados foram entregues. O que cada um virou, e onde a decisão del
 | 4 | Marcadores e anotações            | Contexto `annotation`. Âncora é o **tempo**, então sobrevive ao reprocessamento. Marcar não exige escrever       | `CLAUDE.md` → contexto `annotation`  |
 | 5 | Tela de admin                     | `/admin` atrás de guard de papel. Promover virou botão; **o primeiro admin continua sendo `UPDATE` na mão**      | `CLAUDE.md` → "Administração"        |
 | 6 | Share target + pausar a gravação  | POST no service worker + 303; cronômetro **descontando o tempo parado** (tem teste)                              | `CLAUDE.md` → apps/web               |
+| 7 | Mapa mental do áudio              | **Vista** do resumo que já existe (zero chamada de modelo), duas formas por largura, PNG feito no navegador      | `CLAUDE.md` → apps/web               |
 
-Três decisões que estavam em aberto na fila e foram fechadas assim:
+Quatro decisões que estavam em aberto na fila e foram fechadas assim:
 
 - **Tarefa materializada, não derivada** — lida do resumo na hora, ela não teria onde lembrar que foi
   marcada, e reprocessar desmarcaria tudo em silêncio.
@@ -25,6 +26,11 @@ Três decisões que estavam em aberto na fila e foram fechadas assim:
   ser ele parar de funcionar; e transcrição/áudio não vão junto sem alguém marcar.
 - **Desativar conta virou rota de ADMIN sobre outra pessoa**, separada da exclusão (LGPD), que
   continua sendo só do próprio dono.
+- **Mapa mental é DERIVADO do resumo, não pedido ao modelo** — uma segunda chamada custaria mais um
+  ponto de falha no pipeline pra produzir os mesmos assuntos com outras palavras, com o direito de
+  discordar do resumo. Derivado, ele já vale pra biblioteca inteira sem reprocessar nada. Se um dia
+  a hierarquia plana decepcionar, o próximo passo é um campo aninhado NO MESMO JSON que o resumo já
+  devolve — nunca uma chamada nova.
 
 ---
 

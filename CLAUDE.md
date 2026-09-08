@@ -727,6 +727,30 @@ validação de UI simples).
   página, e página suspensa não alimenta o `MediaRecorder` — que é exatamente o caso de deixar o
   telefone na mesa numa reunião de 40 minutos. Best-effort (nem todo navegador tem) e retomado a
   cada `visibilitychange`, porque o lock morre quando a aba esconde e o navegador não devolve.
+- **O mapa mental é uma VISTA do resumo, não uma segunda ida ao modelo** (`components/mind-map/`):
+  headline no meio, uma seção por lista, um nó por bullet. Duas chamadas sobre o mesmo áudio podem
+  DISCORDAR, e um mapa contradizendo o resumo logo acima dele é pior que não ter mapa. Sendo
+  derivado, ele nasce valendo pra toda gravação já processada — sem reprocessar nada, sem coluna
+  nova, sem gastar cota.
+  - **Duas formas, não uma responsiva**: árvore da esquerda pra direita no desktop e uma pilha
+    indentada abaixo de `lg`. O mapa espelhado (o bonito) precisa de ~1200px e as duas telas que o
+    mostram são uma coluna de leitura de 768px — caberia só encolhendo a tipografia até ninguém
+    ler. A escolha é do `matchMedia` e começa na estreita, senão o servidor renderiza uma e o
+    cliente outra.
+  - **A geometria mora numa função PURA** (`lib/mind-map-layout.ts`) e tem teste: SVG não recorta
+    nem avisa nada — caixa em cima de caixa continua renderizando, só que ilegível, e nem o
+    `check-types` nem o `build` percebem.
+  - **O texto é quebrado na mão** (SVG não tem quebra de linha), medido em CARACTERES contra uma
+    largura média de glifo — com um número maior pro **negrito**, senão o título da seção encosta na
+    borda da própria caixa. O que a reticência cortou fica no `<title>` do nó: é a tooltip E o nome
+    acessível.
+  - **O PNG é gerado no navegador** (SVG → canvas → blob). ⚠️ Um SVG serializado é um documento
+    PRÓPRIO: ele não enxerga o `globals.css`, então cada `var(--x)` resolveria pra nada e a imagem
+    sairia **toda preta** (fill inválido = preto). O export lê a paleta do `documentElement` e a
+    escreve no clone — é o que mantém a cor num lugar só em vez de hex colado no componente. E
+    `URL.revokeObjectURL` no fim, como no download do áudio.
+  - **Vai junto no link compartilhado sem opção nenhuma**: ele É o resumo desenhado, e resumo é o que
+    todo link leva. Não expõe nada além do que a página já mostrava.
 - **O player é NOSSO** (`audio-player/`), com o `<audio>` sem `controls`. O nativo é pintado pelo
   Chromium como uma barra branca — a única superfície do app que ignorava a paleta, no topo de toda
   tela de detalhe. Ter os controles também é o que dá pular 15s e velocidade de reprodução, que é o
