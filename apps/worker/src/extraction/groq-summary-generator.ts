@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { GeneratedSummary, SummaryGenerator, SummaryGeneratorInput } from '@summary/adapters'
 import {
   CHAT_MODEL_FALLBACKS,
+  GroqCallError,
   GroqConfig,
   callWithRetry,
   createGroqClient,
@@ -10,6 +11,23 @@ import {
 } from './groq-llm'
 import { LlmSummaryRecord, toGeneratedSummary } from './summary-mapper'
 import { templateFor } from './summary-prompts'
+
+/**
+ * The ceiling for the ANSWER, in tokens.
+ *
+ * Set explicitly, never left to the provider's default: with
+ * `response_format: json_object`, an answer that runs out of budget mid-document
+ * comes back as a **400 json_validate_failed** ("max completion tokens reached
+ * before generating a valid document") — which is not a retryable failure and
+ * not a model problem, so it used to take the whole recording down with it. The
+ * ask got much bigger when the prompt started demanding a real document, and
+ * that is exactly when this started happening.
+ *
+ * It is an env var because it is a budget, and a budget belongs to the account:
+ * the free Groq tier answers with `x-ratelimit-limit-tokens: 8000` a MINUTE, and
+ * that window has to hold the transcript AND the answer.
+ */
+const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_COMPLETION_TOKENS ?? 2_500)
 
 /**
  * The rules that hold for EVERY kind of audio. What changes per kind is what
@@ -34,8 +52,16 @@ import { templateFor } from './summary-prompts'
  * not put line breaks inside a JSON string unless it is told to, and without
  * them the renderer has a single justified wall of text to lay out.
  */
-function instructionsFor(kind?: string): string {
+/**
+ * How much is asked for. `full` is the document we want; `concise` is what is
+ * asked on the SECOND try, after the first answer ran out of completion budget
+ * mid-JSON. A shorter summary is worth having; a failed recording is not.
+ */
+export type SummaryDepth = 'full' | 'concise'
+
+function instructionsFor(kind: string | undefined, depth: SummaryDepth): string {
   const template = templateFor(kind)
+  const concise = depth === 'concise'
 
   return `### MISSÃO: RESUMIR A TRANSCRIÇÃO DE UM ÁUDIO EM JSON
 
@@ -60,24 +86,25 @@ o exemplo, o número, o nome, o motivo.
 3. Preserve o CONCRETO: nomes de pessoas, números, valores, datas, prazos,
    exemplos e termos técnicos ditos no áudio. É isso que faz o documento valer.
 4. "headline": um título curto (no máximo 10 palavras) que diga do que é o áudio.
-5. "overview": NO MÍNIMO 4 parágrafos, e quantos mais o áudio pedir.
+5. "overview": ${concise ? 'NO MÍNIMO 2 parágrafos' : 'NO MÍNIMO 4 parágrafos, e quantos mais o áudio pedir'}.
    - **Separe cada parágrafo com uma linha em branco de verdade dentro da string
      (\n\n).** Um bloco único de texto está ERRADO.
-   - No mínimo 350 palavras no total, contando a mesma história na ordem em que
-     foi contada: o contexto, o desenvolvimento com os exemplos dados, onde houve
-     dúvida ou divergência, e como terminou.
+   - No mínimo ${concise ? '180' : '350'} palavras no total, contando a mesma história na ordem em
+     que foi contada: o contexto, o desenvolvimento com os exemplos dados, onde
+     houve dúvida ou divergência, e como terminou.
    - Parágrafos de 4 a 7 frases. É a parte que substitui ouvir o áudio.
-6. "topics": ${template.topics}. De 6 a 12 itens, CADA UM no formato
+6. "topics": ${template.topics}. De ${concise ? '5 a 7' : '6 a 12'} itens, CADA UM no formato
    "Rótulo curto: explicação".
    - O rótulo tem de 2 a 5 palavras e vira um nó do mapa mental — precisa fazer
      sentido sozinho, sem o resto da frase.
-   - A explicação tem NO MÍNIMO 2 frases (o normal são 3) e traz ${template.detail}.
-   - Uma frase só é resposta ERRADA: o item fica parecendo um verbete.
+   - A explicação tem ${concise ? 'de 1 a 2 frases' : 'NO MÍNIMO 2 frases (o normal são 3)'} e traz ${template.detail}.${
+     concise ? '' : '\n   - Uma frase só é resposta ERRADA: o item fica parecendo um verbete.'
+   }
    - Exemplo do formato: "Prazo do lançamento: ficou adiado para depois do
      fechamento do mês, porque o financeiro só libera os números no dia 5. A
      Carol lembrou que no ano passado subir antes do fechamento gerou dezessete
      chamados de suporte em dois dias."
-7. "action_items": ${template.actionItems}. No máximo 8 itens, no MESMO formato
+7. "action_items": ${template.actionItems}. No máximo ${concise ? '5' : '8'} itens, no MESMO formato
    "Rótulo curto: explicação", dizendo quem ficou responsável e o prazo QUANDO
    isso foi dito no áudio. Se não houver nada disso, devolva uma lista vazia [].
    NÃO transforme um assunto qualquer em tarefa só pra preencher.
@@ -92,8 +119,12 @@ o exemplo, o número, o nome, o motivo.
 }`
 }
 
-function buildPrompt(input: SummaryGeneratorInput, characterLimit: number): string {
-  return `${instructionsFor(input.kind)}
+function buildPrompt(
+  input: SummaryGeneratorInput,
+  characterLimit: number,
+  depth: SummaryDepth,
+): string {
+  return `${instructionsFor(input.kind, depth)}
 
 --- TÍTULO DADO PELO USUÁRIO ---
 ${input.recordingTitle}
@@ -132,7 +163,24 @@ export class GroqSummaryGenerator implements SummaryGenerator {
   }
 
   async generate(input: SummaryGeneratorInput): Promise<GeneratedSummary> {
-    const content = await this.complete(buildPrompt(input, this.config.characterLimit))
+    try {
+      return await this.summarize(input, 'full')
+    } catch (error) {
+      // The answer did not FIT, which is not the same as the answer failing.
+      // Asking again for a shorter document is the only move that still leaves
+      // the user with a summary — the alternative is a failed recording over a
+      // budget, and the audio would be re-transcribed on the retry for nothing.
+      if (!isTruncatedJson(error)) throw error
+      console.warn('[worker] the summary did not fit the answer budget; asking for a shorter one.')
+      return await this.summarize(input, 'concise')
+    }
+  }
+
+  private async summarize(
+    input: SummaryGeneratorInput,
+    depth: SummaryDepth,
+  ): Promise<GeneratedSummary> {
+    const content = await this.complete(buildPrompt(input, this.config.characterLimit, depth))
 
     // The model that ANSWERED, not the one that was configured: the summary row
     // records what actually wrote it.
@@ -178,11 +226,25 @@ export class GroqSummaryGenerator implements SummaryGenerator {
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       temperature: 0.2,
+      max_completion_tokens: MAX_COMPLETION_TOKENS,
     })
     const answer = response.choices[0]?.message?.content
     if (!answer) throw new Error('Groq returned an empty response.')
     return answer
   }
+}
+
+/**
+ * Whether the answer was CUT OFF rather than wrong.
+ *
+ * Groq's shape for it, with `json_object` on: HTTP 400, code
+ * `json_validate_failed`, and `failed_generation: "max completion tokens reached
+ * before generating a valid document"`. It reads like a bad request — it is a
+ * document that did not fit.
+ */
+export function isTruncatedJson(error: unknown): boolean {
+  const message = error instanceof GroqCallError ? errorMessage(error.original) : errorMessage(error)
+  return /json_validate_failed|Failed to generate JSON|max completion tokens reached/i.test(message)
 }
 
 /**

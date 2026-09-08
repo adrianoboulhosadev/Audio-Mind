@@ -1,5 +1,10 @@
-import { GroqSummaryGenerator, parseSummaryJson } from '../src/extraction/groq-summary-generator'
+import {
+  GroqSummaryGenerator,
+  isTruncatedJson,
+  parseSummaryJson,
+} from '../src/extraction/groq-summary-generator'
 import { GroqConfig } from '../src/extraction'
+import { GroqCallError } from '../src/extraction/groq-llm'
 
 const CONFIG: GroqConfig = {
   apiKey: 'test-key',
@@ -21,15 +26,34 @@ function refusal(model: string): Error {
 }
 
 /**
+ * The exact 400 Groq answers when `json_object` is on and the model ran out of
+ * completion budget before closing the document. Copied from a real worker log.
+ */
+function truncated(): Error {
+  return new Error(
+    "400 Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+  )
+}
+
+/**
  * Stands in for the OpenAI SDK client the generator builds in its constructor:
  * `answer` decides, per model, whether Groq accepts the call. Records every
  * model asked, which is what these tests are actually about.
  */
-function stubClient(generator: GroqSummaryGenerator, answer: (model: string) => string) {
+function stubClient(
+  generator: GroqSummaryGenerator,
+  answer: (model: string, prompt: string) => string,
+) {
   const asked: string[] = []
-  const create = async ({ model }: { model: string }) => {
+  const create = async ({
+    model,
+    messages,
+  }: {
+    model: string
+    messages: { content: string }[]
+  }) => {
     asked.push(model)
-    return { choices: [{ message: { content: answer(model) } }] }
+    return { choices: [{ message: { content: answer(model, messages[0].content) } }] }
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(generator as any).client = { chat: { completions: { create } } }
@@ -119,4 +143,66 @@ test('reads the JSON even when the model fences it or talks around it', () => {
 
 test('an answer with no JSON at all fails — it does not become an empty summary', () => {
   expect(() => parseSummaryJson('não consegui resumir')).toThrow('did not return valid JSON')
+})
+
+describe('resposta que nao coube no orcamento', () => {
+  it('pede um resumo MENOR em vez de derrubar a gravacao', () => {
+    // O caso real: pedir um documento inteiro estourou o teto de saida e o JSON
+    // voltou cortado. Uma gravacao falhada por causa de orcamento faria o audio
+    // ser transcrito de novo na retentativa, de graca.
+    expect(isTruncatedJson(truncated())).toBe(true)
+    expect(isTruncatedJson(new GroqCallError('wrapped', truncated()))).toBe(true)
+    expect(isTruncatedJson(new Error('401 invalid api key'))).toBe(false)
+  })
+
+  it('a segunda tentativa pede menos texto, e vale como resumo', async () => {
+    const generator = new GroqSummaryGenerator(CONFIG)
+    const prompts: string[] = []
+    stubClient(generator, (_model, prompt) => {
+      prompts.push(prompt)
+      if (prompts.length === 1) throw truncated()
+      return ANSWER
+    })
+
+    const summary = await generator.generate(input)
+
+    expect(summary.model).toBe(CONFIG.model)
+    // O primeiro pede o documento; o segundo pede o que cabe.
+    expect(prompts[0]).toContain('NO MÍNIMO 4 parágrafos')
+    expect(prompts[1]).toContain('NO MÍNIMO 2 parágrafos')
+    expect(prompts[1]).toContain('De 5 a 7 itens')
+  })
+
+  it('so tenta encurtar UMA vez — cortar de novo e falha de verdade', async () => {
+    const generator = new GroqSummaryGenerator(CONFIG)
+    const asked = stubClient(generator, () => {
+      throw truncated()
+    })
+
+    await expect(generator.generate(input)).rejects.toThrow(/Failed to generate JSON/)
+    // Uma chamada por tentativa, e nenhuma corrida pela lista de modelos: o
+    // problema nunca foi o modelo.
+    expect(asked).toEqual([CONFIG.model, CONFIG.model])
+  })
+
+  it('manda um teto de saida explicito, nunca o default do provedor', async () => {
+    const generator = new GroqSummaryGenerator(CONFIG)
+    let sent: Record<string, unknown> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(generator as any).client = {
+      chat: {
+        completions: {
+          create: async (body: Record<string, unknown>) => {
+            sent = body
+            return { choices: [{ message: { content: ANSWER } }] }
+          },
+        },
+      },
+    }
+
+    await generator.generate(input)
+
+    expect(sent.max_completion_tokens).toBeGreaterThan(0)
+    expect(sent.response_format).toEqual({ type: 'json_object' })
+  })
 })
