@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { AudioLines, Quote } from 'lucide-react'
+import { splitIntoParagraphs } from '@summary/adapters'
 import { Loading } from '@/components/loading'
 import { MindMap } from '@/components/mind-map'
 import { SummaryBullet } from '@/components/summary-bullet'
@@ -63,7 +64,13 @@ export default function SharedSummaryPage() {
       ) : null}
 
       <section className="rounded-2xl border border-line2 bg-panel p-5">
-        <p className="whitespace-pre-line text-sm leading-relaxed text-ink2">{summary.overview}</p>
+        <div className="flex flex-col gap-3">
+          {splitIntoParagraphs(summary.overview).map((paragraph, index) => (
+            <p key={index} className="text-sm leading-relaxed text-ink2">
+              {paragraph}
+            </p>
+          ))}
+        </div>
 
         {summary.topics.length > 0 ? (
           <div className="mt-5">

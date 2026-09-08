@@ -1,6 +1,6 @@
 'use client'
 
-import type { SummaryDTO } from '@summary/adapters'
+import { splitIntoParagraphs, type SummaryDTO } from '@summary/adapters'
 import { Button } from '@/components/button'
 import { SummaryBullet } from '@/components/summary-bullet'
 import { api } from '@/lib/api'
@@ -30,7 +30,16 @@ export function SummaryPanel({ summary, recordingId }: { summary: SummaryDTO; re
         {summary.pdfUrl ? <Button onClick={download}>Baixar PDF</Button> : null}
       </div>
 
-      <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink2">{summary.overview}</p>
+      {/* Parágrafo a parágrafo, e não um bloco com `whitespace-pre-line`: o
+          modelo nem sempre devolve as quebras, e resumo antigo é sempre um bloco
+          só (ver splitIntoParagraphs). */}
+      <div className="mt-3 flex flex-col gap-3">
+        {splitIntoParagraphs(summary.overview).map((paragraph, index) => (
+          <p key={index} className="text-sm leading-relaxed text-ink2">
+            {paragraph}
+          </p>
+        ))}
+      </div>
 
       {/* An empty section is omitted entirely: a heading over nothing reads like
           the summary failed, and "sem próximos passos" is a real outcome. */}
