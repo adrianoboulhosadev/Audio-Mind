@@ -4,7 +4,7 @@ import { GroqConfig } from './groq-llm'
 import { GroqSpeechToText } from './groq-speech-to-text'
 import { GroqSummaryGenerator } from './groq-summary-generator'
 
-export { createGroqClient, callWithRetry } from './groq-llm'
+export { createGroqClient, callWithRetry, readPositiveNumber } from './groq-llm'
 export type { GroqConfig } from './groq-llm'
 export { toGeneratedSummary } from './summary-mapper'
 export type { LlmSummaryRecord } from './summary-mapper'

@@ -4,7 +4,7 @@ import {
   parseSummaryJson,
 } from '../src/extraction/groq-summary-generator'
 import { GroqConfig } from '../src/extraction'
-import { GroqCallError } from '../src/extraction/groq-llm'
+import { GroqCallError, readPositiveNumber } from '../src/extraction/groq-llm'
 
 const CONFIG: GroqConfig = {
   apiKey: 'test-key',
@@ -204,5 +204,37 @@ describe('resposta que nao coube no orcamento', () => {
 
     expect(sent.max_completion_tokens).toBeGreaterThan(0)
     expect(sent.response_format).toEqual({ type: 'json_object' })
+  })
+})
+
+describe('readPositiveNumber', () => {
+  const NAME = 'TEST_BUDGET'
+
+  afterEach(() => {
+    delete process.env[NAME]
+  })
+
+  it('le o numero quando ele esta la', () => {
+    process.env[NAME] = '1200'
+    expect(readPositiveNumber(NAME, 99)).toBe(1200)
+  })
+
+  it('variavel VAZIA cai no default — nao vira zero', () => {
+    // `X=` no .env nao e undefined, entao `??` nao pega, e Number('') e 0. Com
+    // TRANSCRIPT_CHAR_LIMIT isso mandaria uma transcricao VAZIA pro modelo, que
+    // escreveria um resumo sobre nada sem erro nenhum aparecer.
+    process.env[NAME] = ''
+    expect(readPositiveNumber(NAME, 99)).toBe(99)
+  })
+
+  it('lixo, zero e negativo tambem caem no default', () => {
+    for (const value of ['abc', '0', '-5']) {
+      process.env[NAME] = value
+      expect(readPositiveNumber(NAME, 99)).toBe(99)
+    }
+  })
+
+  it('ausente cai no default', () => {
+    expect(readPositiveNumber(NAME, 99)).toBe(99)
   })
 })

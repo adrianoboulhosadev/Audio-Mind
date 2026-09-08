@@ -20,8 +20,20 @@ const CHAT_MODEL_FALLBACKS = [
   'llama-3.3-70b-versatile',
 ]
 
-/** How much of the transcript goes into the prompt. Same knob the worker uses. */
-const CHARACTER_LIMIT = Number(process.env.TRANSCRIPT_CHAR_LIMIT ?? 24_000)
+/**
+ * How much of the transcript goes into the prompt. Same knob the worker uses.
+ *
+ * Read defensively for the reason the worker spells out: `TRANSCRIPT_CHAR_LIMIT=`
+ * (present but empty) is not `undefined`, so `??` misses it and `Number('')` is
+ * 0 — which would slice the transcript down to NOTHING and answer questions
+ * about an empty text, silently.
+ */
+const CHARACTER_LIMIT = readPositiveNumber('TRANSCRIPT_CHAR_LIMIT', 24_000)
+
+function readPositiveNumber(name: string, fallback: number): number {
+  const parsed = Number(process.env[name])
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
 
 function buildPrompt(input: TranscriptQuestionInput): string {
   return `### MISSÃO: RESPONDER UMA PERGUNTA SOBRE UM ÁUDIO

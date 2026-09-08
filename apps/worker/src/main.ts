@@ -8,7 +8,12 @@ import { TaskFacade } from '@task/adapters'
 import { TranscriptionFacade } from '@transcription/adapters'
 import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
-import { createSpeechToText, createSummaryGenerator, GroqConfig } from './extraction'
+import {
+  createSpeechToText,
+  createSummaryGenerator,
+  readPositiveNumber,
+  GroqConfig,
+} from './extraction'
 import { startHeartbeat } from './heartbeat'
 import { PdfKitSummaryRenderer } from './pdf/pdfkit-summary-renderer'
 import { LiveUpdates } from './notification/live-updates'
@@ -38,7 +43,7 @@ function main(): void {
     apiKey: process.env.GROQ_API_KEY ?? '',
     model: process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
     transcriptionModel: process.env.GROQ_TRANSCRIPTION_MODEL ?? 'whisper-large-v3',
-    characterLimit: Number(process.env.TRANSCRIPT_CHAR_LIMIT ?? 24_000),
+    characterLimit: readPositiveNumber('TRANSCRIPT_CHAR_LIMIT', 24_000),
   }
 
   const liveUpdates = new LiveUpdates(redisUrl)
@@ -88,7 +93,7 @@ function main(): void {
       connection,
       // One audio at a time by default: each job holds a file open and waits on
       // two model calls, and the rate limit is per API key, not per process.
-      concurrency: Number(process.env.WORKER_CONCURRENCY ?? 2),
+      concurrency: readPositiveNumber('WORKER_CONCURRENCY', 2),
     },
   )
 

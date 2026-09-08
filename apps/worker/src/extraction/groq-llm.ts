@@ -40,6 +40,18 @@ export class GroqCallError extends Error {
   }
 }
 
+/**
+ * A number from the environment, or the default — FAIL-SAFE against the shape
+ * that bites: `X=` (present but empty) is not `undefined`, so `??` does not
+ * catch it and `Number('')` is **0**. A zero here is not a smaller budget, it is
+ * a broken one: `transcript.slice(0, 0)` hands the model an EMPTY transcript and
+ * it writes a summary about nothing, without a single error anywhere.
+ */
+export function readPositiveNumber(name: string, fallback: number): number {
+  const parsed = Number(process.env[name])
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 export interface GroqConfig {
   apiKey: string
   /** Chat model that writes the summary. */

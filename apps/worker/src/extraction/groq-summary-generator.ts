@@ -8,6 +8,7 @@ import {
   createGroqClient,
   errorMessage,
   isModelUnavailable,
+  readPositiveNumber,
 } from './groq-llm'
 import { LlmSummaryRecord, toGeneratedSummary } from './summary-mapper'
 import { templateFor } from './summary-prompts'
@@ -27,7 +28,7 @@ import { templateFor } from './summary-prompts'
  * the free Groq tier answers with `x-ratelimit-limit-tokens: 8000` a MINUTE, and
  * that window has to hold the transcript AND the answer.
  */
-const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_COMPLETION_TOKENS ?? 2_500)
+const MAX_COMPLETION_TOKENS = readPositiveNumber('GROQ_MAX_COMPLETION_TOKENS', 2_500)
 
 /**
  * The rules that hold for EVERY kind of audio. What changes per kind is what
