@@ -39,6 +39,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   SUMMARY_NOT_FOUND: 'O resumo ainda não está pronto.',
   EMPTY_SUMMARY: 'O modelo não conseguiu resumir esse áudio.',
   PDF_NOT_AVAILABLE: 'O PDF desse resumo ainda não foi gerado.',
+  EMPTY_QUESTION: 'Escreva a sua pergunta.',
+  QUESTION_TOO_LONG: 'Essa pergunta é longa demais.',
+  EMPTY_ANSWER: 'A IA não respondeu nada dessa vez. Tente perguntar de outro jeito.',
+  AI_UNAVAILABLE: 'A IA está indisponível agora. Tente de novo em alguns minutos.',
 
   // annotation
   ANNOTATION_NOT_FOUND: 'Marcador não encontrado.',
