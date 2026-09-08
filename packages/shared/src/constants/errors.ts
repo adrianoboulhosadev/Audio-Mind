@@ -65,6 +65,10 @@ export const Errors = {
   EMPTY_QUESTION: 'EMPTY_QUESTION',
   QUESTION_TOO_LONG: 'QUESTION_TOO_LONG',
   EMPTY_ANSWER: 'EMPTY_ANSWER',
+  // The model could not be reached at all: no API key configured, or Groq
+  // refused/failed every candidate. Nothing the caller typed is wrong, so it is
+  // NOT a validation problem — it is the dependency being unavailable.
+  AI_UNAVAILABLE: 'AI_UNAVAILABLE',
 
   // annotation — a mark (and maybe a note) at one second of a recording
   ANNOTATION_NOT_FOUND: 'ANNOTATION_NOT_FOUND',
