@@ -22,6 +22,17 @@ import { templateFor } from './summary-prompts'
  * holding three sentences is a paragraph in a box) and the document prints the
  * whole item, label in bold. Asking for one-liners was what made the PDF read
  * like a list of headings with nothing under them.
+ *
+ * Every quantity here is a FLOOR, and that is the whole lesson of the first
+ * version: "de 3 a 6 parágrafos" and "de 1 a 3 frases" were read as ceilings and
+ * answered with one of each. A model gives the least the instruction allows, so
+ * the instruction has to say the least it accepts — and say WHY, or the floor is
+ * padded with words instead of content (hence the "erro que você não pode
+ * cometer" above).
+ *
+ * The `\n\n` in the overview is spelled out for the same reason: a model does
+ * not put line breaks inside a JSON string unless it is told to, and without
+ * them the renderer has a single justified wall of text to lay out.
  */
 function instructionsFor(kind?: string): string {
   const template = templateFor(kind)
@@ -32,29 +43,40 @@ ${template.context}
 
 ### O QUE ESTÁ SENDO ESCRITO
 Um DOCUMENTO que alguém vai ler no lugar de ouvir o áudio inteiro, e que também
-vira um mapa mental. Não é uma ata de tópicos soltos: quem ler tem que entender
-o assunto sem ter estado lá.
+vira um mapa mental. Não é uma ata de tópicos soltos nem um glossário: quem ler
+tem que entender o assunto sem ter estado lá.
+
+### O ERRO QUE VOCÊ NÃO PODE COMETER
+Devolver frases genéricas que qualquer pessoa escreveria SEM ter ouvido o áudio.
+Se o que você escreveu num item continuaria verdadeiro pra qualquer outro áudio
+sobre o mesmo assunto, ele está errado — troque pelo que foi dito NESTE áudio:
+o exemplo, o número, o nome, o motivo.
 
 ### REGRAS OBRIGATÓRIAS:
 1. Escreva SEMPRE em português do Brasil, mesmo que o áudio esteja em outro idioma.
 2. NÃO INVENTE informação. Use apenas o que está na transcrição.
    - Se a transcrição não disser algo, simplesmente não escreva sobre isso.
    - Nunca escreva "não foi mencionado", "não há informação": é só não escrever.
-3. Preserve o CONCRETO: nomes de pessoas, números, valores, datas, prazos e
-   termos técnicos ditos no áudio. É isso que faz o documento valer alguma coisa.
+3. Preserve o CONCRETO: nomes de pessoas, números, valores, datas, prazos,
+   exemplos e termos técnicos ditos no áudio. É isso que faz o documento valer.
 4. "headline": um título curto (no máximo 10 palavras) que diga do que é o áudio.
-5. "overview": de 3 a 6 parágrafos em prosa, na ordem em que as coisas foram
-   ditas, explicando o assunto — o contexto, o que foi discutido, onde deu
-   divergência e onde fechou. Parágrafos de verdade (3 a 6 frases cada), não uma
-   lista disfarçada. É a parte que substitui ouvir o áudio.
-6. "topics": ${template.topics}. De 5 a 10 itens, e CADA UM no formato
+5. "overview": NO MÍNIMO 4 parágrafos, e quantos mais o áudio pedir.
+   - **Separe cada parágrafo com uma linha em branco de verdade dentro da string
+     (\n\n).** Um bloco único de texto está ERRADO.
+   - No mínimo 350 palavras no total, contando a mesma história na ordem em que
+     foi contada: o contexto, o desenvolvimento com os exemplos dados, onde houve
+     dúvida ou divergência, e como terminou.
+   - Parágrafos de 4 a 7 frases. É a parte que substitui ouvir o áudio.
+6. "topics": ${template.topics}. De 6 a 12 itens, CADA UM no formato
    "Rótulo curto: explicação".
    - O rótulo tem de 2 a 5 palavras e vira um nó do mapa mental — precisa fazer
      sentido sozinho, sem o resto da frase.
-   - A explicação tem de 1 a 3 frases (até ~450 caracteres no item inteiro) e diz
-     o QUE foi falado sobre aquilo, com os detalhes concretos da regra 3.
+   - A explicação tem NO MÍNIMO 2 frases (o normal são 3) e traz ${template.detail}.
+   - Uma frase só é resposta ERRADA: o item fica parecendo um verbete.
    - Exemplo do formato: "Prazo do lançamento: ficou adiado para depois do
-     fechamento do mês, porque o financeiro só libera os números no dia 5."
+     fechamento do mês, porque o financeiro só libera os números no dia 5. A
+     Carol lembrou que no ano passado subir antes do fechamento gerou dezessete
+     chamados de suporte em dois dias."
 7. "action_items": ${template.actionItems}. No máximo 8 itens, no MESMO formato
    "Rótulo curto: explicação", dizendo quem ficou responsável e o prazo QUANDO
    isso foi dito no áudio. Se não houver nada disso, devolva uma lista vazia [].
@@ -64,7 +86,7 @@ o assunto sem ter estado lá.
 ### FORMATO (devolva SOMENTE o JSON, sem markdown em volta):
 {
   "headline": "string",
-  "overview": "string",
+  "overview": "string com \n\n entre os parágrafos",
   "topics": ["string"],
   "action_items": ["string"]
 }`

@@ -2,7 +2,13 @@ import { createWriteStream } from 'fs'
 import { mkdir } from 'fs/promises'
 import { join } from 'path'
 import PDFDocument from 'pdfkit'
-import { buildMindMap, splitBulletLabel, PdfRenderer, PdfRendererInput } from '@summary/adapters'
+import {
+  buildMindMap,
+  splitBulletLabel,
+  splitIntoParagraphs,
+  PdfRenderer,
+  PdfRendererInput,
+} from '@summary/adapters'
 import { SUMMARY_DIR, SUMMARY_SUBDIR, UPLOADS_URL_PREFIX } from './uploads-path'
 import { PDF_COLORS, PDF_MIND_MAP_GEOMETRY, drawMindMap, pdfMeasure } from './mind-map-drawing'
 
@@ -31,6 +37,9 @@ const PAGE_BOTTOM = PAGE.height - MARGIN
 /** Enough for a section title plus the first item under it, and for one item
  * (its label plus a couple of lines of explanation). Both are in points. */
 const HEADING_WITH_ITEM = 96
+/** The section title plus the space under it, so a drawing can be measured
+ * together with the heading that announces it. */
+const HEADING_HEIGHT = 22
 const ITEM_SPACE = 64
 
 const SECTIONS = {
@@ -111,12 +120,12 @@ export class PdfKitSummaryRenderer implements PdfRenderer {
   private overview(document: PDFKit.PDFDocument, overview: string): void {
     this.heading(document, SECTIONS.overview, PDF_COLORS.accent)
 
-    // Paragraphs, one by one: a single `text()` with newlines in it loses the
-    // spacing between them, and the overview is asked for as 3 to 6 paragraphs.
-    const paragraphs = overview
-      .split(/\n{2,}|\n/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean)
+    // Paragraph by paragraph: a single `text()` with newlines in it loses the
+    // spacing between them. And what comes back is not always paragraphed — a
+    // wall of text justified across the column is broken up here (see
+    // splitIntoParagraphs), which is also what makes every summary written
+    // before the instruction existed readable without reprocessing.
+    const paragraphs = splitIntoParagraphs(overview)
 
     document.font('Helvetica').fontSize(10.5).fillColor(PDF_COLORS.ink2)
     paragraphs.forEach((paragraph, index) => {
@@ -151,15 +160,17 @@ export class PdfKitSummaryRenderer implements PdfRenderer {
     if (!map) return
 
     document.moveDown(1.4)
-    this.heading(document, SECTIONS.map, PDF_COLORS.accent)
 
-    // The whole drawing moves to the next page rather than being cut in half —
-    // half a mind map explains nothing.
-    const available = PAGE_BOTTOM - document.y
-    if (map.height > available && map.height <= PAGE.height - MARGIN * 2) {
-      document.addPage()
-      this.heading(document, SECTIONS.map, PDF_COLORS.accent)
-    }
+    // The whole drawing moves to the next page rather than being cut in half
+    // (half a mind map explains nothing) — and the decision is taken BEFORE the
+    // heading is written, together with it. Writing the heading first and only
+    // then deciding leaves it announcing nothing at the foot of the page, with a
+    // second copy of itself on the next one.
+    const needed = HEADING_HEIGHT + map.height
+    const fitsAPage = map.height + HEADING_HEIGHT <= PAGE.height - MARGIN * 2
+    if (document.y + needed > PAGE_BOTTOM && fitsAPage) document.addPage()
+
+    this.heading(document, SECTIONS.map, PDF_COLORS.accent)
 
     // The cursor has to be remembered BEFORE drawing: every label the map writes
     // is a `text()` call, and pdfkit advances its own cursor on each one — inside
