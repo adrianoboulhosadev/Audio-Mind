@@ -298,6 +298,19 @@ pending -> transcribing -> summarizing -> ready --(reprocessar, só o dono)--> p
     mais nada. Zerar `page.margins.bottom` na página que está sendo carimbada é a saída.
   - **Título de seção nunca fica órfão**: o teste de espaço é do título MAIS o primeiro item.
 
+- **O teto da RESPOSTA é explícito** (`GROQ_MAX_COMPLETION_TOKENS`), nunca o default do provedor.
+  Com `response_format: json_object`, uma resposta que estoura o orçamento **no meio do documento**
+  volta como **400 `json_validate_failed`** (`failed_generation: "max completion tokens reached
+  before generating a valid document"`) — que não é falha retentável nem problema de modelo, então
+  passava direto pelos dois fallbacks e derrubava a gravação. Apareceu no dia em que o prompt passou
+  a pedir um documento de verdade.
+  - **Resposta cortada não mata a gravação**: o worker pede UMA vez um resumo mais curto (`concise`,
+    com pisos menores) antes de desistir. Resumo menor é resumo; gravação `failed` por orçamento
+    ainda faria o áudio ser transcrito de novo na retentativa, de graça.
+  - ⚠️ **O orçamento é por MINUTO e é da conta**: o header `x-ratelimit-limit-tokens` (8000 no tier
+    gratuito) tem que caber a transcrição MAIS a resposta. `TRANSCRIPT_CHAR_LIMIT=24000` são ~7000
+    tokens só de entrada — com a resposta junto, não cabe, e a chamada passa a bater no 429.
+
 - **A leitura do JSON é tolerante** (`parseSummaryJson`): com `json_object` o `JSON.parse` direto
   bastaria, mas o fallback existe justo pra rodar num modelo que ninguém aqui testou, e modelo
   gosta de cercar o JSON com ```` ```json ```` ou uma frase. Pegar o objeto mais externo não é
