@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation'
 import { AudioLines, Quote } from 'lucide-react'
 import { Loading } from '@/components/loading'
+import { MindMap } from '@/components/mind-map'
 import { RECORDING_KIND_LABELS } from '@/data/recording-kinds'
 import { formatDateTime, formatDuration } from '@/lib/format'
 import { SHARE_FAILURES, UNKNOWN_SHARE_FAILURE } from './data/share-failures'
@@ -95,6 +96,15 @@ export default function SharedSummaryPage() {
           </div>
         ) : null}
       </section>
+
+      {/* Vai junto sem ninguém marcar nada: ele é o resumo desenhado, e o resumo
+          é o que todo link compartilha. Nada de novo sai daqui — nem o dono, nem
+          a transcrição, nem o áudio. */}
+      <MindMap
+        headline={summary.headline}
+        topics={summary.topics}
+        actionItems={summary.actionItems}
+      />
 
       {transcript ? (
         <section className="rounded-2xl border border-line2 bg-panel p-5">

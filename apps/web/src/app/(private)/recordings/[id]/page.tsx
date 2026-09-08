@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field } from '@/components/field'
 import { IconButton } from '@/components/icon-button'
 import { Loading } from '@/components/loading'
+import { MindMap } from '@/components/mind-map'
 import { SelectField } from '@/components/select-field'
 import { StatusBadge } from '@/components/status-badge'
 import { RECORDING_KIND_HINTS, RECORDING_KIND_LABELS } from '@/data/recording-kinds'
@@ -169,6 +170,15 @@ export default function RecordingDetailPage() {
       <MarkersPanel recordingId={recording.id} player={player} />
 
       {summary ? <SummaryPanel summary={summary} recordingId={recording.id} /> : null}
+      {/* O MESMO resumo, desenhado — logo abaixo dele de propósito: é a mesma
+          informação em outra forma, não uma segunda leitura do áudio. */}
+      {summary ? (
+        <MindMap
+          headline={summary.headline}
+          topics={summary.topics}
+          actionItems={summary.actionItems}
+        />
+      ) : null}
       {/* Só faz sentido com um resumo pronto: o link abre o resumo, e sem ele a
           página compartilhada não teria o que mostrar. */}
       {summary ? <SharePanel recordingId={recording.id} /> : null}
