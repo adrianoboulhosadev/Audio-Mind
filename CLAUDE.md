@@ -270,6 +270,34 @@ pending -> transcribing -> summarizing -> ready --(reprocessar, só o dono)--> p
   `CHAT_MODEL_FALLBACKS` — e **lembra qual funcionou** (o próximo job já começa por ele). Qualquer
   outra falha é falha DAQUELA chamada e sobe como está: trocar de modelo ali só gastaria cota com o
   mesmo erro. O resumo grava o modelo que **respondeu**, não o que estava configurado.
+### O formato do bullet, e o PDF como DOCUMENTO (TRAVADO)
+
+- **Todo bullet é pedido como "Rótulo curto: explicação"** — e essa forma sustenta três lugares de
+  uma vez: o **mapa** desenha o rótulo, o **PDF** imprime o rótulo em negrito com a explicação
+  embaixo, e a **tela** faz o mesmo (`components/summary-bullet/`). Pedir frase de uma linha era o
+  que fazia o PDF parecer uma lista de títulos sem nada embaixo.
+  - A leitura é **tolerante** (`splitBulletLabel`): dois-pontos no meio de uma frase não é rótulo, e
+    resumo antigo (ou modelo que ignorou o formato) sai inteiro, sem rótulo. Gravação de ontem tem
+    que continuar legível sem ser reprocessada.
+  - **`SummaryBullet.MAX_LENGTH` é 600, não 300** — o teto tem que caber rótulo + 1 a 3 frases.
+    Deixá-lo em 300 depois de pedir a explicação transformaria um resumo BOM em gravação `failed`
+    por causa de um item comprido. **`TaskText` sobe junto, sempre**: a tarefa É um bullet promovido,
+    e se os dois discordarem o pipeline aceita o resumo e falha ao materializar os itens dele.
+- **O PDF é UM documento, não um resumo com anexos**: capa, `visão geral` em prosa (3 a 6
+  parágrafos), o **mapa desenhado em vetor** no meio, e as seções escritas por extenso depois. O mapa
+  fica ENTRE a prosa e o detalhe porque é ali que ele serve: a prosa conta o que houve, o mapa mostra
+  o formato daquilo, as seções abrem cada ramo.
+  - **Vetor, nunca imagem**: o texto continua selecionável e imprime na resolução da impressora, não
+    na de um PNG. O teste garante que o documento não carrega bitmap nenhum.
+  - **O mapa inteiro pula de página** em vez de ser cortado ao meio (meio mapa não explica nada), e
+    só encolhe se nem numa página cheia couber.
+  - ⚠️ **O cursor do pdfkit anda a cada `text()`** — e o mapa faz dezenas deles, dentro de um
+    `translate/scale`. Guardar o `document.y` ANTES de desenhar não é estilo: sem isso a seção
+    seguinte era escrita POR CIMA do desenho.
+  - ⚠️ **Rodapé abaixo da margem inferior faz o pdfkit abrir outra página** — que sai com o rodapé e
+    mais nada. Zerar `page.margins.bottom` na página que está sendo carimbada é a saída.
+  - **Título de seção nunca fica órfão**: o teste de espaço é do título MAIS o primeiro item.
+
 - **A leitura do JSON é tolerante** (`parseSummaryJson`): com `json_object` o `JSON.parse` direto
   bastaria, mas o fallback existe justo pra rodar num modelo que ninguém aqui testou, e modelo
   gosta de cercar o JSON com ```` ```json ```` ou uma frase. Pegar o objeto mais externo não é
@@ -416,7 +444,8 @@ allowance, input)`). Cliente que pudesse nomear o próprio teto nomearia o maior
   uploads.
 - **summary** — o que o LLM escreveu + o PDF. `Summary` + VOs `SummaryHeadline`/`SummaryOverview`/
   `SummaryBullet` (tetos diferentes porque dizem coisas diferentes: um título é uma linha, um
-  overview são parágrafos, um bullet é uma frase). Máximo de **12 bullets** por lista — mais que
+  overview são parágrafos, um bullet é um rótulo com 1 a 3 frases de explicação — ver "O formato do
+  bullet"). Máximo de **12 bullets** por lista — mais que
   isso o modelo está transcrevendo, não resumindo. Bullet **vazio é descartado**, não reprovado:
   reprovar o áudio inteiro por uma linha em branco no fim da lista seria absurdo. O **conteúdo é
   congelado na criação** (não existe `edit`); a única coisa que muda depois é o `pdfUrl`.
@@ -727,28 +756,29 @@ validação de UI simples).
   página, e página suspensa não alimenta o `MediaRecorder` — que é exatamente o caso de deixar o
   telefone na mesa numa reunião de 40 minutos. Best-effort (nem todo navegador tem) e retomado a
   cada `visibilitychange`, porque o lock morre quando a aba esconde e o navegador não devolve.
-- **O mapa mental é uma VISTA do resumo, não uma segunda ida ao modelo** (`components/mind-map/`):
-  headline no meio, uma seção por lista, um nó por bullet. Duas chamadas sobre o mesmo áudio podem
-  DISCORDAR, e um mapa contradizendo o resumo logo acima dele é pior que não ter mapa. Sendo
-  derivado, ele nasce valendo pra toda gravação já processada — sem reprocessar nada, sem coluna
-  nova, sem gastar cota.
-  - **Duas formas, não uma responsiva**: árvore da esquerda pra direita no desktop e uma pilha
-    indentada abaixo de `lg`. O mapa espelhado (o bonito) precisa de ~1200px e as duas telas que o
-    mostram são uma coluna de leitura de 768px — caberia só encolhendo a tipografia até ninguém
-    ler. A escolha é do `matchMedia` e começa na estreita, senão o servidor renderiza uma e o
-    cliente outra.
-  - **A geometria mora numa função PURA** (`lib/mind-map-layout.ts`) e tem teste: SVG não recorta
-    nem avisa nada — caixa em cima de caixa continua renderizando, só que ilegível, e nem o
-    `check-types` nem o `build` percebem.
-  - **O texto é quebrado na mão** (SVG não tem quebra de linha), medido em CARACTERES contra uma
-    largura média de glifo — com um número maior pro **negrito**, senão o título da seção encosta na
-    borda da própria caixa. O que a reticência cortou fica no `<title>` do nó: é a tooltip E o nome
-    acessível.
-  - **O PNG é gerado no navegador** (SVG → canvas → blob). ⚠️ Um SVG serializado é um documento
-    PRÓPRIO: ele não enxerga o `globals.css`, então cada `var(--x)` resolveria pra nada e a imagem
-    sairia **toda preta** (fill inválido = preto). O export lê a paleta do `documentElement` e a
-    escreve no clone — é o que mantém a cor num lugar só em vez de hex colado no componente. E
-    `URL.revokeObjectURL` no fim, como no download do áudio.
+- **O mapa mental é uma VISTA do resumo, não uma segunda ida ao modelo**: headline no meio, uma
+  seção por lista, um nó por bullet. Duas chamadas sobre o mesmo áudio podem DISCORDAR, e um mapa
+  contradizendo o resumo ao lado dele é pior que não ter mapa. Sendo derivado, ele vale pra toda
+  gravação já processada — sem reprocessar nada, sem coluna nova, sem gastar cota.
+  - **A geometria mora em `@summary/adapters` (`layout/mind-map-layout.ts`), não no app**: os DOIS
+    desenham o mesmo mapa — a tela em SVG (`components/mind-map/`) e o worker em vetor dentro do PDF.
+    A regra de driven adapter morar no app é sobre INFRA (repositório, fila); duas cópias de um
+    algoritmo de layout divergiriam até a figura da tela e a do documento discordarem. Tem teste,
+    porque nem SVG nem pdfkit recortam ou avisam: caixa em cima de caixa continua renderizando, só
+    que ilegível, e nem o `check-types` nem o `build` percebem.
+  - **Quem MEDE o texto é injetado** (`measure`): o navegador estima em caracteres contra uma largura
+    média de glifo (com um número maior pro negrito, senão o título da seção encosta na borda da
+    caixa); o PDF usa `widthOfString`, a métrica real da fonte. Mesmo empilhamento, medidas
+    diferentes — é a única coisa que de fato muda entre os dois alvos.
+  - **O nó mostra o RÓTULO do bullet** (ver "O formato do bullet"), não a frase inteira: nó com três
+    frases dentro é parágrafo numa caixa, não ramo de mapa mental. A explicação inteira fica no
+    `<title>` (tooltip e nome acessível) e escrita por extenso na seção logo abaixo.
+  - **Duas formas na tela, não uma responsiva**: árvore da esquerda pra direita no desktop e pilha
+    indentada abaixo de `lg`, escolhidas por `matchMedia` começando na estreita (senão o servidor
+    renderiza uma e o cliente outra). No PDF é sempre a árvore, medida pra coluna A4.
+  - **Não existe download do mapa como imagem.** O mapa que a pessoa GUARDA é o que está dentro do
+    PDF, em vetor, ao lado do texto que ele resume — um segundo arquivo, em formato pior e sozinho,
+    era um artefato a mais dizendo a mesma coisa.
   - **Vai junto no link compartilhado sem opção nenhuma**: ele É o resumo desenhado, e resumo é o que
     todo link leva. Não expõe nada além do que a página já mostrava.
 - **O player é NOSSO** (`audio-player/`), com o `<audio>` sem `controls`. O nativo é pintado pelo

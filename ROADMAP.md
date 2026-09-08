@@ -16,7 +16,7 @@ Os 7 itens aprovados foram entregues. O que cada um virou, e onde a decisão del
 | 4 | Marcadores e anotações            | Contexto `annotation`. Âncora é o **tempo**, então sobrevive ao reprocessamento. Marcar não exige escrever       | `CLAUDE.md` → contexto `annotation`  |
 | 5 | Tela de admin                     | `/admin` atrás de guard de papel. Promover virou botão; **o primeiro admin continua sendo `UPDATE` na mão**      | `CLAUDE.md` → "Administração"        |
 | 6 | Share target + pausar a gravação  | POST no service worker + 303; cronômetro **descontando o tempo parado** (tem teste)                              | `CLAUDE.md` → apps/web               |
-| 7 | Mapa mental do áudio              | **Vista** do resumo que já existe (zero chamada de modelo), duas formas por largura, PNG feito no navegador      | `CLAUDE.md` → apps/web               |
+| 7 | Mapa mental + PDF de verdade      | Mapa é **vista** do resumo (zero chamada a mais) e é DESENHADO no PDF; bullet vira "Rótulo: explicação"        | `CLAUDE.md` → "O formato do bullet"  |
 
 Quatro decisões que estavam em aberto na fila e foram fechadas assim:
 
@@ -31,6 +31,10 @@ Quatro decisões que estavam em aberto na fila e foram fechadas assim:
   discordar do resumo. Derivado, ele já vale pra biblioteca inteira sem reprocessar nada. Se um dia
   a hierarquia plana decepcionar, o próximo passo é um campo aninhado NO MESMO JSON que o resumo já
   devolve — nunca uma chamada nova.
+- **O mapa mora DENTRO do PDF, em vetor, e não existe download dele como imagem** — o documento é um
+  só: prosa, desenho e seções. O que deixou o PDF magro não era o layout, era o prompt pedindo
+  "uma frase curta" por item; agora cada bullet é "Rótulo: explicação", e o rótulo é o que o mapa
+  desenha.
 
 ---
 
@@ -55,6 +59,10 @@ Quatro decisões que estavam em aberto na fila e foram fechadas assim:
 
 - **Apêndice com a transcrição cronometrada no PDF.** Resolveria de forma honesta o que os timestamps
   por tópico não resolvem, mas transforma o PDF de "o resumo" num calhamaço de 10-15 páginas.
+- **Seções de verdade no resumo** (um campo aninhado no MESMO JSON, com título e parágrafo por
+  seção). É o passo seguinte se o documento ainda parecer raso depois do prompt novo — e o único que
+  pede migration, coluna e mudança na entidade. Enquanto não pedir, o formato do JSON continua o
+  mesmo pra todo tipo de áudio.
 - **O primeiro admin.** Continua sendo `UPDATE users SET role='admin'` na mão, de propósito. Se algum
   dia isso incomodar, a saída é um comando de setup — nunca uma tela.
 
