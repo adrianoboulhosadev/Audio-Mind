@@ -27,7 +27,7 @@ describe('the summary value objects', () => {
     expect(() => new SummaryHeadline('a'.repeat(151))).toThrow(
       expect.objectContaining({ code: Errors.SUMMARY_TEXT_TOO_LONG }),
     )
-    expect(() => new SummaryBullet('a'.repeat(301))).toThrow(
+    expect(() => new SummaryBullet('a'.repeat(SummaryBullet.MAX_LENGTH + 1))).toThrow(
       expect.objectContaining({ code: Errors.SUMMARY_TEXT_TOO_LONG }),
     )
   })

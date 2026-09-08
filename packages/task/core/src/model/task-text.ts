@@ -9,7 +9,7 @@ import { ValidationError, Errors, Validator } from 'shared'
  * summary and then fail to materialize its own action items.
  */
 export class TaskText {
-  static readonly MAX_LENGTH = 300
+  static readonly MAX_LENGTH = 600
 
   readonly value: string
 

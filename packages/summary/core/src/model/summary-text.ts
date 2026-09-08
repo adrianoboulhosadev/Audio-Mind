@@ -47,9 +47,16 @@ export class SummaryOverview {
   }
 }
 
-/** One bullet — a main point or an action item. */
+/**
+ * One bullet — a main point or an action item.
+ *
+ * It is asked for as "Rótulo curto: explicação" (see the worker's prompt), so
+ * the ceiling has to hold a label plus one to three sentences. It was 300 while
+ * a bullet was a single line; keeping it there after asking for the explanation
+ * would turn a GOOD summary into a failed recording over one long item.
+ */
 export class SummaryBullet {
-  static readonly MAX_LENGTH = 300
+  static readonly MAX_LENGTH = 600
 
   readonly value: string
 
