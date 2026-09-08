@@ -73,7 +73,6 @@ services:
       # The first boot runs the migrations before serving; failing the check
       # while that happens would restart the container mid-migration.
       start_period: 60s
-      - '127.0.0.1:5002:5000'
     volumes:
       # The audio people upload and the PDFs the pipeline generates live on disk,
       # not in the database — WITHOUT this volume, recreating the container
