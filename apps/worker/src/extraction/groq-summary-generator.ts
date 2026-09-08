@@ -16,6 +16,12 @@ import { templateFor } from './summary-prompts'
  * goes in "topics" and "action_items" (see summary-prompts.ts) — the JSON shape
  * is the same for all of them, so the entity, the PDF and the screen stay one
  * thing instead of one per kind.
+ *
+ * Every bullet is asked for as "Rótulo curto: explicação", and that shape is
+ * load-bearing in two places at once: the mind map draws the LABEL (a node
+ * holding three sentences is a paragraph in a box) and the document prints the
+ * whole item, label in bold. Asking for one-liners was what made the PDF read
+ * like a list of headings with nothing under them.
  */
 function instructionsFor(kind?: string): string {
   const template = templateFor(kind)
@@ -24,18 +30,36 @@ function instructionsFor(kind?: string): string {
 
 ${template.context}
 
+### O QUE ESTÁ SENDO ESCRITO
+Um DOCUMENTO que alguém vai ler no lugar de ouvir o áudio inteiro, e que também
+vira um mapa mental. Não é uma ata de tópicos soltos: quem ler tem que entender
+o assunto sem ter estado lá.
+
 ### REGRAS OBRIGATÓRIAS:
 1. Escreva SEMPRE em português do Brasil, mesmo que o áudio esteja em outro idioma.
 2. NÃO INVENTE informação. Use apenas o que está na transcrição.
    - Se a transcrição não disser algo, simplesmente não escreva sobre isso.
-3. "headline": um título curto (no máximo 10 palavras) que diga do que é o áudio.
-4. "overview": de 1 a 3 parágrafos em prosa contando o que foi dito, na ordem em
-   que foi dito. É a parte que substitui ouvir o áudio inteiro.
-5. "topics": ${template.topics}, no máximo 8 itens, uma frase curta cada.
-6. "action_items": ${template.actionItems}, no máximo 8 itens. Se não houver nada
-   disso, devolva uma lista vazia []. NÃO transforme um assunto qualquer em
-   tarefa só pra preencher.
-7. Nada de markdown dentro dos textos (sem **, sem #, sem bullets).
+   - Nunca escreva "não foi mencionado", "não há informação": é só não escrever.
+3. Preserve o CONCRETO: nomes de pessoas, números, valores, datas, prazos e
+   termos técnicos ditos no áudio. É isso que faz o documento valer alguma coisa.
+4. "headline": um título curto (no máximo 10 palavras) que diga do que é o áudio.
+5. "overview": de 3 a 6 parágrafos em prosa, na ordem em que as coisas foram
+   ditas, explicando o assunto — o contexto, o que foi discutido, onde deu
+   divergência e onde fechou. Parágrafos de verdade (3 a 6 frases cada), não uma
+   lista disfarçada. É a parte que substitui ouvir o áudio.
+6. "topics": ${template.topics}. De 5 a 10 itens, e CADA UM no formato
+   "Rótulo curto: explicação".
+   - O rótulo tem de 2 a 5 palavras e vira um nó do mapa mental — precisa fazer
+     sentido sozinho, sem o resto da frase.
+   - A explicação tem de 1 a 3 frases (até ~450 caracteres no item inteiro) e diz
+     o QUE foi falado sobre aquilo, com os detalhes concretos da regra 3.
+   - Exemplo do formato: "Prazo do lançamento: ficou adiado para depois do
+     fechamento do mês, porque o financeiro só libera os números no dia 5."
+7. "action_items": ${template.actionItems}. No máximo 8 itens, no MESMO formato
+   "Rótulo curto: explicação", dizendo quem ficou responsável e o prazo QUANDO
+   isso foi dito no áudio. Se não houver nada disso, devolva uma lista vazia [].
+   NÃO transforme um assunto qualquer em tarefa só pra preencher.
+8. Nada de markdown dentro dos textos (sem **, sem #, sem bullets).
 
 ### FORMATO (devolva SOMENTE o JSON, sem markdown em volta):
 {
