@@ -48,6 +48,10 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
     >
+      {/* The dashed edge only exists under the pointer (and under keyboard
+          focus, which has nothing else to show). It stays `border-transparent`
+          rather than going away, so a hover never reflows the panel by the two
+          pixels the border occupies. */}
       <motion.div
         whileHover="animate"
         onClick={() => inputRef.current?.click()}
@@ -61,7 +65,9 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
         }}
         aria-label="Escolher um arquivo de áudio"
         className={`group/upload relative w-full cursor-pointer overflow-hidden rounded-xl border border-dashed p-8 transition-colors ${
-          dragging ? 'border-accent bg-accent-soft/20' : 'border-line2 hover:border-accent'
+          dragging
+            ? 'border-accent bg-accent-soft/20'
+            : 'border-transparent hover:border-accent focus-visible:border-accent'
         }`}
       >
         <input
