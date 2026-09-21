@@ -409,6 +409,14 @@ Use-case/domínio **nunca** lança erro interno/500. Códigos ficam em `Errors` 
 - **O PROMPT de cada tipo mora no adapter do worker** (`summary-prompts.ts`), não no `summary/core`:
   prompt é infraestrutura, igual ao id do modelo e à política de retry. O `kind` atravessa a porta
   como **string opaca** — o contexto `summary` não interpreta.
+- **Conversa social não é conteúdo**: cumprimento, despedida, desculpa pela demora, comentário
+  sobre o próprio áudio ("vou mandar áudio que é mais rápido") e gaguejo ficam de FORA — a
+  primeira frase do overview já é o assunto. Veio de um áudio de proposta cujo resumo abria com
+  "desculpa irmão, estava resolvendo uma questão aqui": não é o começo da história, é a embalagem
+  dela. A regra vale pra todo tipo, então mora nas instruções COMUNS do `groq-summary-generator`,
+  não no template de um. **Com exceção explícita**, que é o que impede a regra de apagar o ponto
+  do áudio: quando o atraso ou a justificativa É o assunto (entrega que atrasou, satisfação que
+  alguém cobrou), aquilo é conteúdo e entra.
 - **O FORMATO do JSON é o mesmo pra todos os tipos** (headline/overview/topics/action_items); o que
   muda são as INSTRUÇÕES do que colocar em cada campo. Deixar as seções polimórficas custaria uma
   variante no `Summary`, no DTO, no PDF e na tela — por um ganho que o usuário não vê. O que muda a
