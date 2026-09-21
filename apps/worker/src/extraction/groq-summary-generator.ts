@@ -36,6 +36,14 @@ const MAX_COMPLETION_TOKENS = readPositiveNumber('GROQ_MAX_COMPLETION_TOKENS', 2
  * is the same for all of them, so the entity, the PDF and the screen stay one
  * thing instead of one per kind.
  *
+ * There is also a list of what does NOT go in. A voice message opens with an
+ * apology for taking three days to answer, and the model treated that as the
+ * beginning of the story — the summary of a business proposal started with
+ * "desculpa irmão, estava resolvendo uma questão aqui". It is not content, it is
+ * the wrapping around the content. The exception is spelled out in the prompt
+ * for a reason: when the delay IS what the audio is about, dropping it would
+ * erase the whole point.
+ *
  * Every bullet is asked for as "Rótulo curto: explicação", and that shape is
  * load-bearing in two places at once: the mind map draws the LABEL (a node
  * holding three sentences is a paragraph in a box) and the document prints the
@@ -79,6 +87,20 @@ Se o que você escreveu num item continuaria verdadeiro pra qualquer outro áudi
 sobre o mesmo assunto, ele está errado — troque pelo que foi dito NESTE áudio:
 o exemplo, o número, o nome, o motivo.
 
+### O QUE FICA DE FORA
+Áudio de conversa começa e termina com coisa que não é o assunto. Nada disso
+entra no documento — nem no título, nem no "overview", nem como item:
+- cumprimento e despedida ("oi", "bom dia", "fica com Deus", "abraço");
+- desculpa pela demora ou explicação de por que a pessoa sumiu ("desculpa irmão,
+  tava resolvendo uma questão aqui e esqueci de te responder");
+- comentário sobre o próprio áudio ("vou mandar por áudio que é mais rápido",
+  "tá me ouvindo?", "deixa eu ver se gravou");
+- gaguejo, repetição, barulho e conversa paralela que não volta pro assunto.
+A PRIMEIRA frase do "overview" já é sobre o assunto: se a pessoa se desculpou e
+só DEPOIS foi ao ponto, o documento começa no ponto.
+EXCEÇÃO: quando o atraso, a ausência ou a desculpa FOR o assunto (uma entrega
+que atrasou, uma satisfação que alguém cobrou), aí é conteúdo e entra normal.
+
 ### REGRAS OBRIGATÓRIAS:
 1. Escreva SEMPRE em português do Brasil, mesmo que o áudio esteja em outro idioma.
 2. NÃO INVENTE informação. Use apenas o que está na transcrição.
@@ -91,8 +113,9 @@ o exemplo, o número, o nome, o motivo.
    - **Separe cada parágrafo com uma linha em branco de verdade dentro da string
      (\n\n).** Um bloco único de texto está ERRADO.
    - No mínimo ${concise ? '180' : '350'} palavras no total, contando a mesma história na ordem em
-     que foi contada: o contexto, o desenvolvimento com os exemplos dados, onde
-     houve dúvida ou divergência, e como terminou.
+     que foi contada: o contexto DO ASSUNTO (não a conversa social que abriu o
+     áudio), o desenvolvimento com os exemplos dados, onde houve dúvida ou
+     divergência, e como terminou.
    - Parágrafos de 4 a 7 frases. É a parte que substitui ouvir o áudio.
 6. "topics": ${template.topics}. De ${concise ? '5 a 7' : '6 a 12'} itens, CADA UM no formato
    "Rótulo curto: explicação".
