@@ -1,6 +1,8 @@
 'use client'
 
+import { Copy } from 'lucide-react'
 import type { TranscriptionDTO } from '@transcription/adapters'
+import { IconButton } from '@/components/icon-button'
 import { formatDuration } from '@/lib/format'
 import type { AudioPlayerState } from '../../hooks/use-audio-player'
 import { useTranscriptPanel } from './hooks/use-transcript-panel'
@@ -15,6 +17,10 @@ import { useTranscriptPanel } from './hooks/use-transcript-panel'
  * an hour of audio from something you re-listen to into something you navigate.
  * Without them — an older transcript, a model that did not report any — it falls
  * back to the plain paragraph.
+ *
+ * Copying, though, hands over the text with NO timestamps, and does it without
+ * making the reader open the panel first: navigating is what the markers are
+ * for; taking the transcript somewhere else is a different job.
  */
 export function TranscriptPanel({
   transcription,
@@ -26,30 +32,39 @@ export function TranscriptPanel({
   /** Open on arrival — a search sent the reader here to see one line. */
   defaultOpen?: boolean
 }) {
-  const { open, toggle, activeIndex, listRef, activeRef, onManualScroll } = useTranscriptPanel(
-    transcription.segments,
-    player.currentTime,
-    player.playing,
-    defaultOpen,
-  )
+  const { open, toggle, activeIndex, listRef, activeRef, onManualScroll, copy } =
+    useTranscriptPanel(transcription, player.currentTime, player.playing, defaultOpen)
 
   return (
     <section className="rounded-2xl border border-line2 bg-panel p-5">
-      <button
-        type="button"
-        onClick={toggle}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <span>
-          <span className="block text-sm font-semibold text-ink">Transcrição completa</span>
-          <span className="mt-0.5 block text-xs text-muted">
-            {transcription.wordCount} palavras
-            {transcription.language ? ` · ${transcription.language}` : ''}
-            {transcription.segments.length > 0 ? ' · clique numa linha pra ouvir' : ''}
+      {/* The copy action sits BESIDE the toggle, never inside it: a button
+          nested in a button is invalid markup, and the click would toggle the
+          panel on its way out. */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={toggle}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-ink">Transcrição completa</span>
+            <span className="mt-0.5 block text-xs text-muted">
+              {transcription.wordCount} palavras
+              {transcription.language ? ` · ${transcription.language}` : ''}
+              {transcription.segments.length > 0 ? ' · clique numa linha pra ouvir' : ''}
+            </span>
           </span>
-        </span>
-        <span className="text-xs text-accent">{open ? 'ocultar' : 'mostrar'}</span>
-      </button>
+          <span className="shrink-0 text-xs text-accent">{open ? 'ocultar' : 'mostrar'}</span>
+        </button>
+
+        <IconButton
+          label="Copiar transcrição"
+          tone="accent"
+          tipSide="left"
+          onClick={copy}
+          icon={<Copy size={16} aria-hidden />}
+        />
+      </div>
 
       {open ? (
         transcription.segments.length > 0 ? (

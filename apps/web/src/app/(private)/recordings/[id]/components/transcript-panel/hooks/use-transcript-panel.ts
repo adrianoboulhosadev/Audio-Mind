@@ -1,26 +1,28 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { TranscriptSegmentDTO } from '@transcription/adapters'
+import { toast } from 'sonner'
+import type { TranscriptionDTO } from '@transcription/adapters'
 
 /** How long the list stops following the audio after the reader scrolls it by
  * hand. Long enough to read a paragraph without being yanked away. */
 const MANUAL_SCROLL_GRACE_MS = 6_000
 
 /**
- * Which line is being said right now, plus the collapsed/expanded state and the
- * list following along.
+ * Which line is being said right now, plus the collapsed/expanded state, the
+ * list following along, and copying the whole transcript out.
  *
  * The index is derived from the player's clock instead of being stored: the
  * `<audio>` element is the source of truth for where we are, and a second copy
  * of "the current line" is how a highlight ends up disagreeing with the sound.
  */
 export function useTranscriptPanel(
-  segments: TranscriptSegmentDTO[],
+  transcription: TranscriptionDTO,
   currentTime: number,
   playing: boolean,
   defaultOpen = false,
 ) {
+  const { segments, text } = transcription
   const [open, setOpen] = useState(defaultOpen)
   const listRef = useRef<HTMLUListElement | null>(null)
   const activeRef = useRef<HTMLLIElement | null>(null)
@@ -55,6 +57,24 @@ export function useTranscriptPanel(
     /** Wheel/touch on the list — a real person scrolling, not scrollIntoView. */
     onManualScroll: () => {
       scrolledByHandAt.current = Date.now()
+    },
+    /**
+     * The transcript as TEXT, with no timestamps: `text` is the registry of what
+     * was said, and the segments are only an index into it. Whoever is copying
+     * wants to paste it somewhere else — a minute marker every couple of lines
+     * would be noise there, and gluing the segments back together would rebuild
+     * the same text worse.
+     */
+    copy: async () => {
+      try {
+        await navigator.clipboard.writeText(text)
+        toast.success('Transcrição copiada.')
+      } catch {
+        // Clipboard access can be refused (an insecure origin, a permission the
+        // user said no to). The text is on screen anyway, so this says what to
+        // do instead of failing silently.
+        toast.error('Não consegui copiar. Abra a transcrição e copie na mão.')
+      }
     },
   }
 }
