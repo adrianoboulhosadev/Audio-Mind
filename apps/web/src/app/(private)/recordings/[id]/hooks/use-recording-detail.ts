@@ -4,11 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import type { RecordingDTO, RecordingKind } from '@recording/adapters'
+import type { RecordingKind } from '@recording/adapters'
 import type { SummaryDTO } from '@summary/adapters'
 import type { TranscriptionDTO } from '@transcription/adapters'
+import { RECORDINGS_KEY } from '@/data/query-keys'
+import { useRecording } from '@/hooks/use-recording'
 import { api, errorMessage, isNotFound } from '@/lib/api'
-import { RECORDINGS_KEY } from '../../hooks/use-recordings'
 import { useAudioPlayer } from './use-audio-player'
 
 /**
@@ -42,13 +43,8 @@ export function useRecordingDetail(recordingId: string) {
   // retrying one that failed, where there is nothing to lose.
   const [confirmingReprocess, setConfirmingReprocess] = useState(false)
 
-  const { data: recording, isLoading } = useQuery({
-    queryKey: [...RECORDINGS_KEY, recordingId],
-    queryFn: async () => {
-      const { data } = await api.get<RecordingDTO>(`/recording/${recordingId}`)
-      return data
-    },
-  })
+  // The same query the header's trail reads, by the same key: one request.
+  const { data: recording, isLoading } = useRecording(recordingId)
 
   // Bumped by every transition the pipeline writes (the entity touches it), so
   // it is what tells the derived queries "there may be something new".

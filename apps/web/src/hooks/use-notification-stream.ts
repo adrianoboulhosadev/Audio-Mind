@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { RECORDINGS_KEY } from '@/data/query-keys'
 import { getAccessToken, onAccessTokenChange } from '@/lib/api'
 
 /**
@@ -33,7 +34,7 @@ export function useNotificationStream(): void {
 
     source.onmessage = () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['recordings'] })
+      queryClient.invalidateQueries({ queryKey: RECORDINGS_KEY })
     }
 
     return () => source.close()

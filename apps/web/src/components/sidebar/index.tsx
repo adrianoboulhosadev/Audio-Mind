@@ -10,13 +10,21 @@ import { useNavItems } from '@/hooks/use-nav-items'
  * rendered at all and the BottomNav takes over. It used to be the same component
  * doing both jobs through a slide-out drawer, which meant a phone reached its
  * navigation in two taps (open, then choose) for a three-item app.
+ *
+ * It is PINNED (`sticky top-0 h-screen`): scrolling an hour of transcript used
+ * to carry the whole column away with it, so the navigation only existed at the
+ * top of a page. Sticky and not `fixed` on purpose — fixed takes the element out
+ * of flow, and the layout would have to pay it back with a hardcoded margin on
+ * the content, in a width that is already stated right here.
+ *
+ * The nav itself scrolls, so the list survives a short window and a long menu.
  */
 export function Sidebar() {
   const isActive = useActiveNav()
   const items = useNavItems()
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-panel lg:flex">
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-panel lg:sticky lg:top-0 lg:flex lg:h-screen">
       <div className="flex h-16 items-center border-b border-line px-5">
         <Link href="/recordings" className="flex items-center gap-2 text-ink">
           <AudioLines size={20} className="text-accent" aria-hidden />
@@ -24,7 +32,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
         {items.map(({ href, label, Icon }) => (
           <Link
             key={href}

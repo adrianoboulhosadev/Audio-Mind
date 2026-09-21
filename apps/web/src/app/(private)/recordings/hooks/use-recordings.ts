@@ -9,10 +9,9 @@ import type {
   RecordingSource,
   UploadRecordingInput,
 } from '@recording/adapters'
+import { RECORDINGS_KEY } from '@/data/query-keys'
 import { api, errorMessage } from '@/lib/api'
 import { readAudioDuration } from '@/lib/audio-duration'
-
-export const RECORDINGS_KEY = ['recordings']
 
 /**
  * One search hit. The same three fields the backend composes (see its
