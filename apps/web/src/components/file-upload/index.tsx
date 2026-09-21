@@ -15,9 +15,13 @@ interface FileUploadProps {
 }
 
 /**
- * The drop zone, modelled on Aceternity UI's FileUpload: a grid-patterned panel
- * that lifts under the pointer, and the chosen file sliding in as a card with
- * its real details instead of a filename in grey text.
+ * The drop zone, modelled on Aceternity UI's FileUpload: a plate that lifts
+ * under the pointer, and the chosen file sliding in as a card with its real
+ * details instead of a filename in grey text.
+ *
+ * The original draws a chequerboard behind all of it. It is gone: the panel is
+ * one flat surface now. The pattern fought with every panel around it and was
+ * the loudest thing on a screen whose subject is the file, not the box.
  *
  * Reimplemented rather than installed. `npx shadcn@latest add
  * @aceternity/file-upload` pulls from ui.aceternity.com, and the component it
@@ -57,11 +61,9 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
         }}
         aria-label="Escolher um arquivo de áudio"
         className={`group/upload relative w-full cursor-pointer overflow-hidden rounded-xl border border-dashed p-8 transition-colors ${
-          dragging ? 'border-accent bg-accent-soft/20' : 'border-line2 bg-panel2/40 hover:border-accent'
+          dragging ? 'border-accent bg-accent-soft/20' : 'border-line2 hover:border-accent'
         }`}
       >
-        <GridPattern />
-
         <input
           ref={inputRef}
           type="file"
@@ -70,7 +72,7 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
           onChange={(event) => onChange(event.target.files?.[0] ?? null)}
         />
 
-        <div className="relative flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center">
           <p className="text-sm font-medium text-ink">Enviar um áudio</p>
           <p className="mt-1 text-xs text-muted">
             {dragging ? 'Solte o arquivo aqui' : 'Arraste e solte, ou clique para escolher'}
@@ -82,7 +84,7 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
                 layoutId="file-upload-card"
                 initial={{ opacity: 0, scaleX: 0.96 }}
                 animate={{ opacity: 1, scaleX: 1 }}
-                className="relative z-20 mx-auto flex w-full flex-col gap-1 rounded-lg border border-line2 bg-panel p-4"
+                className="relative z-20 mx-auto flex w-full flex-col gap-1 rounded-lg border border-line2 bg-panel2 p-4"
               >
                 <div className="flex items-center justify-between gap-4">
                   <p className="truncate text-sm text-ink">{file.name}</p>
@@ -91,7 +93,7 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 text-xs text-muted">
-                  <span className="truncate rounded-md bg-panel2 px-1.5 py-0.5">
+                  <span className="truncate rounded-md border border-line px-1.5 py-0.5">
                     {file.type || 'tipo desconhecido'}
                   </span>
                   <span className="shrink-0">
@@ -109,7 +111,7 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
                   animate: { x: 12, y: -12, opacity: 0.92 },
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="relative z-20 mx-auto flex h-24 w-full items-center justify-center rounded-lg border border-line2 bg-panel"
+                className="relative z-20 mx-auto flex h-24 w-full items-center justify-center rounded-lg border border-line2 bg-panel2"
               >
                 <UploadCloud size={22} className="text-muted" aria-hidden />
               </motion.div>
@@ -125,39 +127,9 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
             ) : null}
           </div>
 
-          {hint ? <p className="relative mt-5 text-xs text-muted">{hint}</p> : null}
+          {hint ? <p className="mt-5 text-xs text-muted">{hint}</p> : null}
         </div>
       </motion.div>
-    </div>
-  )
-}
-
-/**
- * The chequered backdrop. Built as a grid of small cells rather than an SVG
- * pattern so the two shades come from the palette variables like everything
- * else. Purely decorative — hidden from assistive tech.
- */
-function GridPattern() {
-  const columns = 32
-  const rows = 8
-
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 flex flex-shrink-0 flex-wrap items-center justify-center gap-px opacity-40"
-    >
-      {Array.from({ length: rows * columns }).map((_, index) => {
-        const row = Math.floor(index / columns)
-        const checker = (row + (index % columns)) % 2 === 0
-        return (
-          <div
-            key={index}
-            className={`flex h-9 w-9 flex-shrink-0 rounded-[2px] ${
-              checker ? 'bg-panel2' : 'bg-panel shadow-[0_0_1px_3px_var(--bg)_inset]'
-            }`}
-          />
-        )
-      })}
     </div>
   )
 }
