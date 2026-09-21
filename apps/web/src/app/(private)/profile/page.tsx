@@ -1,10 +1,16 @@
 'use client'
 
 import { Button } from '@/components/button'
+import { Checkbox } from '@/components/checkbox'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field } from '@/components/field'
+import { Label } from '@/components/label'
 import { Loading } from '@/components/loading'
 import { useProfile } from './hooks/use-profile'
+
+/** Uma tela, uma caixa dessas — id fixo em vez de `useId`, que obrigaria a
+ *  página a chamar um hook só para amarrar o rótulo à caixa. */
+const ACKNOWLEDGE_ID = 'delete-account-acknowledge'
 
 export default function ProfilePage() {
   const {
@@ -108,18 +114,24 @@ export default function ProfilePage() {
           guardar algum resumo, baixe o PDF antes.
         </p>
 
-        <label className="mt-4 flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-ink2">
-          <input
-            type="checkbox"
+        {/* Em vermelho, e não por enfeite: a caixa que libera o botão de apagar
+            a conta não pode ler igual à que decide se um link leva o áudio. */}
+        <div className="mt-4 flex items-start gap-2">
+          <Checkbox
+            id={ACKNOWLEDGE_ID}
+            tone="danger"
             checked={acknowledged}
-            onChange={(event) => setAcknowledged(event.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-bad"
+            onCheckedChange={(value) => setAcknowledged(value === true)}
+            className="mt-0.5"
           />
-          <span>
+          <Label
+            htmlFor={ACKNOWLEDGE_ID}
+            className="cursor-pointer text-xs leading-relaxed text-ink2"
+          >
             Estou ciente de que todos os meus dados serão apagados junto com a conta e de que essa
             ação é definitiva.
-          </span>
-        </label>
+          </Label>
+        </div>
 
         <Button
           variant="danger"

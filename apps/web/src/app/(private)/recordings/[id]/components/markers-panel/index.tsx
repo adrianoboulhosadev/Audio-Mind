@@ -4,6 +4,7 @@ import { BookmarkPlus, Pencil, Trash2 } from 'lucide-react'
 import { AnnotationNote } from '@annotation/adapters'
 import { Button } from '@/components/button'
 import { IconButton } from '@/components/icon-button'
+import { Input } from '@/components/input'
 import { formatDuration } from '@/lib/format'
 import type { AudioPlayerState } from '../../hooks/use-audio-player'
 import { useMarkersPanel } from './hooks/use-markers-panel'
@@ -67,7 +68,7 @@ export function MarkersPanel({
                 </button>
 
                 {editingId === item.id ? (
-                  <input
+                  <Input
                     autoFocus
                     value={draft}
                     maxLength={AnnotationNote.MAX_LENGTH}
@@ -78,7 +79,7 @@ export function MarkersPanel({
                       if (event.key === 'Escape') cancelEditing()
                     }}
                     placeholder="O que era esse momento?"
-                    className="min-w-0 flex-1 rounded-md border border-line2 bg-panel2 px-2 py-1 text-sm text-ink outline-none focus:border-accent"
+                    className="min-w-0 flex-1 rounded-md px-2 py-1"
                   />
                 ) : (
                   <button

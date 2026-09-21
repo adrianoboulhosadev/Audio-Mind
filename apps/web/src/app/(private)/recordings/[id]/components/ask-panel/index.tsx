@@ -3,6 +3,7 @@
 import { Sparkles } from 'lucide-react'
 import { TranscriptQuestion } from '@summary/adapters'
 import { Button } from '@/components/button'
+import { Input } from '@/components/input'
 import { useAskPanel } from './hooks/use-ask-panel'
 
 /**
@@ -35,7 +36,7 @@ export function AskPanel({ recordingId }: { recordingId: string }) {
         }}
         className="mt-4 flex flex-wrap items-end gap-2"
       >
-        <input
+        <Input
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           // The ceiling comes from the value object itself: a UI that let people
@@ -43,7 +44,7 @@ export function AskPanel({ recordingId }: { recordingId: string }) {
           maxLength={TranscriptQuestion.MAX_LENGTH}
           placeholder="O que ficou combinado?"
           aria-label="Sua pergunta sobre esse áudio"
-          className="min-w-0 flex-1 rounded-lg border border-line2 bg-panel2 px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent"
+          className="min-w-0 flex-1"
         />
         <Button type="submit" disabled={asking || !question.trim()}>
           {asking ? 'Pensando…' : 'Perguntar'}

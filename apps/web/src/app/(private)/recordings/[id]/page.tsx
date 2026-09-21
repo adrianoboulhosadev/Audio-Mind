@@ -114,7 +114,7 @@ export default function RecordingDetailPage() {
             label="Tipo de áudio"
             value={recording.kind}
             disabled={changingKind}
-            onChange={(event) => changeKind(event.target.value as RecordingKind)}
+            onValueChange={(value) => changeKind(value as RecordingKind)}
             options={Object.entries(RECORDING_KIND_LABELS).map(([value, label]) => ({
               value,
               label,

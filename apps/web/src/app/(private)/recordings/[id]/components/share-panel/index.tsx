@@ -1,9 +1,12 @@
 'use client'
 
+import { useId } from 'react'
 import { Copy, Link2, Link2Off } from 'lucide-react'
 import { SHARE_WINDOWS, type ShareWindow } from '@sharing/adapters'
 import { Button } from '@/components/button'
+import { Checkbox } from '@/components/checkbox'
 import { IconButton } from '@/components/icon-button'
+import { Label } from '@/components/label'
 import { SelectField } from '@/components/select-field'
 import { formatDateTime, formatRelative } from '@/lib/format'
 import { SHARE_WINDOW_LABELS } from './data/share-windows'
@@ -52,7 +55,7 @@ export function SharePanel({ recordingId }: { recordingId: string }) {
           <SelectField
             label="Vale por"
             value={window}
-            onChange={(event) => setWindow(event.target.value as ShareWindow)}
+            onValueChange={(value) => setWindow(value as ShareWindow)}
             options={SHARE_WINDOWS.map((option) => ({
               value: option,
               label: SHARE_WINDOW_LABELS[option],
@@ -136,7 +139,13 @@ export function SharePanel({ recordingId }: { recordingId: string }) {
   )
 }
 
-/** Um checkbox com o rótulo clicável, na paleta. */
+/**
+ * Um checkbox com o rótulo clicável, na paleta.
+ *
+ * O id é gerado aqui e não recebido de fora: são dois destes lado a lado, e o
+ * `htmlFor` é o que faz o clique no texto marcar a caixa — com um id repetido,
+ * os dois rótulos marcariam a primeira.
+ */
 function Toggle({
   checked,
   onChange,
@@ -146,16 +155,20 @@ function Toggle({
   onChange: (value: boolean) => void
   label: string
 }) {
+  const id = useId()
+
   return (
-    <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-ink2">
-      <input
-        type="checkbox"
+    <div className="flex items-start gap-2.5">
+      <Checkbox
+        id={id}
         checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+        onCheckedChange={(value) => onChange(value === true)}
+        className="mt-0.5"
       />
-      {label}
-    </label>
+      <Label htmlFor={id} className="cursor-pointer text-xs leading-relaxed">
+        {label}
+      </Label>
+    </div>
   )
 }
 

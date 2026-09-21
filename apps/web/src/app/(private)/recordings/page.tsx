@@ -2,6 +2,7 @@
 
 import { Search, X } from 'lucide-react'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Input } from '@/components/input'
 import { Loading } from '@/components/loading'
 import { NewRecording } from './components/new-recording'
 import { RecordingCard } from './components/recording-card'
@@ -45,13 +46,13 @@ export default function RecordingsPage() {
               aria-hidden
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
             />
-            <input
+            <Input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar no que foi dito…"
               aria-label="Buscar nos áudios, na transcrição e no resumo"
-              className="w-full rounded-lg border border-line2 bg-panel py-2 pl-9 pr-9 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent"
+              className="bg-panel pl-9 pr-9"
             />
             {search ? (
               <button

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Search, ShieldCheck, ShieldOff, UserCheck, UserX } from 'lucide-react'
 import { IconButton } from '@/components/icon-button'
+import { Input } from '@/components/input'
 import { Loading } from '@/components/loading'
 import { useAuth } from '@/contexts/auth-context'
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format'
@@ -68,13 +69,13 @@ export default function AdminPage() {
               aria-hidden
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
             />
-            <input
+            <Input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar por nome ou e-mail…"
               aria-label="Buscar contas"
-              className="w-full rounded-lg border border-line2 bg-panel2 py-2 pl-9 pr-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent"
+              className="pl-9"
             />
           </label>
         </div>

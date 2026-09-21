@@ -96,7 +96,7 @@ export function NewRecording({ upload, uploading }: NewRecordingProps) {
           <SelectField
             label="Tipo de áudio"
             value={kind}
-            onChange={(event) => setKind(event.target.value as RecordingKind)}
+            onValueChange={(value) => setKind(value as RecordingKind)}
             options={Object.entries(RECORDING_KIND_LABELS).map(([value, label]) => ({
               value,
               label,
