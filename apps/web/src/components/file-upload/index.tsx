@@ -51,8 +51,14 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
       {/* The dashed edge only exists under the pointer (and under keyboard
           focus, which has nothing else to show). It stays `border-transparent`
           rather than going away, so a hover never reflows the panel by the two
-          pixels the border occupies. */}
+          pixels the border occupies.
+
+          `initial="initial"` belongs on this parent, not only on the children:
+          without a variant named here motion has nothing to resolve at mount,
+          so every child's `initial` entry is skipped and the dashed plate
+          inside comes up already visible. */}
       <motion.div
+        initial="initial"
         whileHover="animate"
         onClick={() => inputRef.current?.click()}
         role="button"
@@ -125,8 +131,10 @@ export function FileUpload({ onChange, file, accept, hint }: FileUploadProps) {
 
             {!file ? (
               // The second plate, offset the other way — it only exists so the
-              // first one has something to lift off.
+              // first one has something to lift off, so it is invisible until
+              // the pointer is actually over the zone.
               <motion.div
+                initial="initial"
                 variants={{ initial: { opacity: 0 }, animate: { opacity: 1 } }}
                 className="absolute inset-0 z-10 mx-auto flex h-24 w-full rounded-lg border border-dashed border-accent/50"
               />
