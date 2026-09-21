@@ -751,6 +751,29 @@ validação de UI simples).
 - **Tooltip perto da borda direita abre pra ESQUERDA** (`tipSide="left"`). Não é estética: um tooltip
   centralizado é posicionado em absolute, e passando da borda ele ALARGA o documento — a página
   inteira ganha rolagem horizontal no celular.
+- **Os controles de formulário são o shadcn/ui, com a paleta daqui**: `Input`, `Label`, `Checkbox`
+  e `Select` têm a ANATOMIA e o comportamento do shadcn (Radix por baixo) e a pintura é nossa — a
+  mesma decisão já tomada no `FileUpload`, pelo mesmo motivo: o CLI do shadcn escreve cor crua
+  (`neutral-800`, pares `dark:`) e traz um SEGUNDO conjunto de CSS vars, e este app tem UMA paleta.
+  Nada de `components/ui/*.tsx` solto — cada um é pasta com `index.tsx`, como todo o resto.
+  - **O `<select>` nativo saiu porque a LISTA ABERTA não é estilizável**: ela é desenhada pelo
+    sistema, então a única superfície que a paleta nunca alcançava era justo o menu (branco no
+    Windows, folha cinza no iOS). O que o nativo dava de graça — typeahead, Home/End, setas, Esc,
+    foco voltando pro gatilho, menu que não vaza da tela — o Radix devolve.
+  - **`SelectField` entrega STRING por `onValueChange`**, não evento, e **não é mais forwardRef**: o
+    elemento por trás é um botão, e o caminho pro react-hook-form é `Controller`, não `register`.
+    O `aria-label` no gatilho não duplica o rótulo visível — `<label for>` não nomeia botão, e sem
+    ele o nome acessível seria a opção escolhida no momento.
+  - **O checkbox virou botão com `role="checkbox"`**: `accent-color` é a ÚNICA coisa que um checkbox
+    nativo deixa pintar, então a caixa que pede pra confirmar a exclusão da conta era desenhada pelo
+    Chromium. Rótulo e caixa se ligam por `htmlFor`/`id`, e isso **tem teste**: quando a ligação
+    quebra, a caixa continua marcando no clique direto e só o texto ao lado morre em silêncio.
+  - **`cn()` (`lib/cn.ts`) não é enfeite**: `` `${BASE} ${className}` `` NÃO sobrescreve nada — duas
+    utilities do mesmo grupo têm a mesma especificidade, e quem ganha é a ordem em que o Tailwind
+    emitiu, não a ordem na string. `twMerge` tira a perdedora antes de chegar no DOM.
+  - **A barra do player continua `<input type="range">`, de propósito**: ela não é campo de
+    formulário, e o Slider do Radix tem semântica própria de arrasto — trocar ali mexeria no seek,
+    que é o coração daquela tela, por zero ganho visual (a barra já é pintada por nós).
 - **Reusar os tipos dos `@ctx/adapters`** via `import type`. Não redeclarar contratos. O
   `AudioFile.MAX_SIZE_BYTES` usado pra avisar antes do upload vem do **próprio VO** reexportado —
   duplicar o número seria uma UI que promete o que o domínio recusa.
